@@ -1,8 +1,6 @@
-update=9/8/2014 7:39:16 PM
+update=9/9/2014 8:10:11 AM
 version=1
-last_client=pcbnew
-[general]
-version=1
+last_client=kicad
 [eeschema]
 version=1
 LibDir=
@@ -89,3 +87,5 @@ LibName21=smd_ssop_packages
 LibName22=smd_transistors
 LibName23=sockets
 LibName24=components
+[general]
+version=1
