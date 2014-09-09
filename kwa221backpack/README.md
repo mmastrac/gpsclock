@@ -1,4 +1,0 @@
-gpsclock
-========
-
-GPS Clock
