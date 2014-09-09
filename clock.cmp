@@ -1,0 +1,38 @@
+Cmp-Mod V01 Created by CvPcb (2013-07-07 BZR 4022)-stable date = 9/9/2014 7:48:40 AM
+
+BeginCmp
+TimeStamp = /540E6CD8;
+Reference = AFF1;
+ValeurCmp = KWA-221ALB;
+IdModule  = KWA-221;
+EndCmp
+
+BeginCmp
+TimeStamp = /540E5D54;
+Reference = P1;
+ValeurCmp = CONN_01X10;
+IdModule  = SIL-10;
+EndCmp
+
+BeginCmp
+TimeStamp = /540E5C1D;
+Reference = P2;
+ValeurCmp = CONN_01X10;
+IdModule  = SIL-10;
+EndCmp
+
+BeginCmp
+TimeStamp = /540F12E1;
+Reference = R1;
+ValeurCmp = R;
+IdModule  = R1;
+EndCmp
+
+BeginCmp
+TimeStamp = /540E7CC6;
+Reference = U1;
+ValeurCmp = TLC5940NT;
+IdModule  = DIP-28__300;
+EndCmp
+
+EndListe
