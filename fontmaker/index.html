@@ -100,8 +100,18 @@ function init() {
 			console.log(which);
 			if (active[which]) {
 				delete active[which];
+				if (which == 'd1' || which == 'd2') {
+					// d1 and d2 are tied together in my design
+					delete active['d1'];
+					delete active['d2'];
+				}
 			} else {
 				active[which] = true;
+				if (which == 'd1' || which == 'd2') {
+					// d1 and d2 are tied together in my design
+					active['d1'] = true;
+					active['d2'] = true;
+				}
 			}
 		}
 
