@@ -1,0 +1,110 @@
+<!doctype html>
+<html>
+<head>
+<script src="https://code.jquery.com/jquery-2.1.1.js"></script>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF8">
+</head>
+<body>
+
+<style>
+canvas {
+	vertical-align: bottom;
+}
+</style>
+
+<h1>Quick and dirty charset viewer</h1>
+
+<p>Tested in Firefox only. Your mileage may vary in other browsers.</p>
+
+<h2>Characters</h2>
+
+<div id="container">
+</div>
+
+<script>
+var images = [ 'a1', 'a2', 'b', 'c', 'd1', 'd2', 'e', 'f', 'g1', 'g2', 'h', 'j', 'k', 'l', 'm', 'n' ];
+var background = new Image();
+var loadedImages = [];
+var font;
+
+function init() {
+	var loaded = 0;
+
+	background.onload = function() {
+		for (var i = 0; i < images.length; i++) {
+			console.log("Loading " + images[i]);
+			var img = new Image();
+			img.which = images[i];
+			img.index = i;
+			img.onload = function() {
+				var img = this;
+
+				loadedImages[img.index] = img;
+
+				loaded++;
+				
+				if (loaded == images.length) {
+					ready();
+				}
+			}
+			img.src = segmentToPath(images[i]);
+		}
+	};
+
+	background.src = 'display/background.png';
+}
+
+function ready() {
+	console.log("Ready.");
+
+	$.getJSON("font.json", function(f) { 
+		font = f;
+
+		console.log("Loaded font");
+
+		var s = "";
+		for (var i = 0; i < 128; i++) {
+			s += String.fromCharCode(i);
+		}
+
+		renderString(s);
+	});
+}
+
+function renderString(s) {
+	$("#container").empty();
+
+	for (var i = 0; i < s.length; i++) {
+		if ((i % 16) == 0) {
+			currentContainer = $("<div>");
+			$("#container").append(currentContainer);
+		}
+		var canvas = $("<canvas>").attr('width', 105).attr('height', 155).css('width', 50 + 'px').css('height', 75 + 'px');
+		currentContainer.append(canvas);
+		drawCharacter(canvas.get(0).getContext('2d'), font[s.charAt(i)]);
+	}
+}
+
+function drawCharacter(ctx, segments) {
+	ctx.drawImage(background, 0, 0, ctx.canvas.width, ctx.canvas.height);
+	if (!segments)
+		return;
+
+	var keys = segments.constructor == Array ? segments : Object.keys(segments);
+
+	for (var i = 0; i < keys.length; i++) {
+		ctx.drawImage(loadedImages[images.indexOf(keys[i])], 0, 0, ctx.canvas.width, ctx.canvas.height);
+	}
+}
+
+function coordToIndex(x, y) {
+	return x + y * width;
+}
+
+function segmentToPath(segment) {
+	return 'display/' + segment.toUpperCase() + '.png';
+}
+
+init();
+</script>
+</body>
