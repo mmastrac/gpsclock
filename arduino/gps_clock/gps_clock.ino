@@ -38,7 +38,7 @@ SoftwareSerial mySerial(3, 2);
 //Adafruit_GPS GPS(&mySerial);
 // If using hardware serial (e.g. Arduino Mega), comment
 // out the above six lines and enable this line instead:
-Adafruit_GPS GPS(&Serial1);
+Adafruit_GPS GPS(&mySerial);
 
 
 // Set GPSECHO to 'false' to turn off echoing the GPS data to the Serial console
@@ -202,3 +202,4 @@ void loop()                     // run over and over again
     }
   }
 }
+
