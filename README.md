@@ -1,7 +1,7 @@
 gpsclock
 ========
 
-![](//github.com/mmastrac/gpsclock/blob/master/images/projectlogo.png)
+![](https://github.com/mmastrac/gpsclock/blob/master/images/project-logo.png)
 
 GPS Clock project. This will eventually consist of a number of components:
 
