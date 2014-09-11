@@ -5,9 +5,11 @@ Simple GPS clock project based on simple components from Adafruit and eBay. This
 
   * A backpack for the Adafruit KWA-221 2.3" digit based on the TLC-5920NT (KiCad PCB project)
   
-![pcb](https://github.com/mmastrac/gpsclock/blob/master/images/pcb.png)
+![pcb screenshot](https://github.com/mmastrac/gpsclock/blob/master/images/pcb.png)
 
   * An Arduino project that reads GPS time from the Adafruit GPS adapter and pushes it out to backpack
+
+![arduino screenshot](https://github.com/mmastrac/gpsclock/blob/master/images/arduino.png)
  
 
 
