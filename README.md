@@ -1,6 +1,8 @@
 gpsclock
 ========
 
+![](//github.com/mmastrac/gpsclock/blob/master/images/projectlogo.png)
+
 GPS Clock project. This will eventually consist of a number of components:
 
   * A backpack for the Adafruit KWA-221 2.3" digit based on the TLC-5920NT (KiCad PCB project)
