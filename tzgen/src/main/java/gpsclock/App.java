@@ -17,7 +17,6 @@ import java.io.IOException;
 import java.io.OutputStreamWriter;
 import java.io.Writer;
 import java.util.ArrayList;
-import java.util.LinkedList;
 
 import javax.imageio.ImageIO;
 
@@ -28,9 +27,6 @@ import org.geotools.feature.FeatureIterator;
 import org.opengis.feature.Property;
 import org.opengis.feature.simple.SimpleFeature;
 
-import com.sksamuel.diffpatch.DiffMatchPatch;
-import com.sksamuel.diffpatch.DiffMatchPatch.Diff;
-import com.sksamuel.diffpatch.DiffMatchPatch.Operation;
 import com.vividsolutions.jts.awt.PointTransformation;
 import com.vividsolutions.jts.awt.ShapeWriter;
 import com.vividsolutions.jts.geom.Geometry;
@@ -188,12 +184,6 @@ public class App {
 			BufferedImage image, TIntIntHashMap colorIds, BufferedWriter w) throws IOException {
 		System.out.println("Computing transitions...");
 		
-		int maxTransitions = 0;
-		TIntIntHashMap countHistogram = new TIntIntHashMap();
-		ArrayList<int[]> lastTransitions = new ArrayList<>();
-		int dupes = 0, dupesCost = 0;
-		int similar = 0, similarCost = 0;
-		
 		ImageProgram imageProgram = new ImageProgram();
 		
 		for (int y = 0; y < imageBounds.height; y++) {
@@ -220,88 +210,6 @@ public class App {
 			transitions.add(new int[] { count, colorIds.get(lastColor) });
 
 			imageProgram.add(new FullLineProgram(imageProgram, new LineSpec(transitions)));	
-			
-			int colorTransitions = transitions.size();
-			if (colorTransitions > maxTransitions)
-				maxTransitions = colorTransitions;
-			
-			countHistogram.adjustOrPutValue(colorTransitions, 1, 1);
-
-			String last = "";
-			for (int[] transition : lastTransitions) {
-				last += (char)transition[1];
-			}
-			String current = "";
-			for (int[] transition : transitions) {
-				current += (char)transition[1];
-			}
-			
-			DiffMatchPatch dmp = new DiffMatchPatch();
-			LinkedList<Diff> diffs = dmp.diff_main(last, current, false);
-			dmp.diff_cleanupEfficiency(diffs);
-			
-			// Similar or dupe, so we can optimize this out here
-			if (diffs.size() == 1 && diffs.get(0).operation == Operation.EQUAL) {
-				String diff = "";
-				boolean dupe = true;
-				for (int i = 0; i < lastTransitions.size(); i++) {
-					if (i > 0)
-						diff += ",";
-					int n = transitions.get(i)[0] - lastTransitions.get(i)[0];
-					if (n != 0) {
-						diff += n;
-						dupe = false;
-					}
-				}
-				
-				if (dupe) {
-					w.write("(dupe)\n");
-					dupes++;
-					dupesCost += transitions.size();
-				} else {
-					w.write("(similar)[");
-					w.write(diff);
-					w.write(']');
-					w.write('\n');
-					similar++;
-					similarCost += transitions.size();
-				}
-				
-				continue;
-			}
-			
-			int lastIndex = 0, currentIndex = 0;
-			for (Diff diff : diffs) {
-				w.write("  " + diff.operation);
-				w.write(' ');
-				if (diff.operation == Operation.EQUAL) {
-					for (int i = 0; i < diff.text.length(); i++) {
-						int n = transitions.get(currentIndex)[0] - lastTransitions.get(lastIndex)[0];
-						w.write("" + n);
-						w.write(",");
-						lastIndex++;
-						currentIndex++;
-					}
-				} else if (diff.operation == Operation.DELETE) {
-					w.write("count = " + diff.text.length());
-					lastIndex += diff.text.length();
-				} else if (diff.operation == Operation.INSERT) {
-					for (int i = 0; i < diff.text.length(); i++) {
-						w.write("[" + transitions.get(currentIndex)[0] + "," + transitions.get(currentIndex)[1] + "]");
-						currentIndex++;
-					}
-				}
-				w.write("\n");
-			}
-
-			lastTransitions = transitions;
-			
-			String line = "";
-			for (int[] data : transitions) {
-				line += "[" + data[0] + "," + data[1] + "]";
-			}
-			w.write(line);
-			w.write('\n');
 		}
 
 		imageProgram.optimize();
@@ -315,16 +223,6 @@ public class App {
 		try (Writer writer = new OutputStreamWriter(new FileOutputStream(f))) {
 			writer.write(imageProgram.dump());
 		}
-
-		int cost = 0;
-		for (int i = 0; i < maxTransitions + 1; i++) {
-//			System.out.println(i + "\t" + countHistogram.get(i));
-			cost += i * countHistogram.get(i);
-		}
-
-		System.out.println("Dupes = " + dupes + " (cost = " + dupesCost + ")");
-		System.out.println("Similar = " + similar + " (cost = " + similarCost + ")");
-		System.out.println("Cost = " + cost);
 	}
 
 }
