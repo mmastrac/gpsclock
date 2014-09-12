@@ -15,6 +15,7 @@ import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.OutputStreamWriter;
+import java.io.Writer;
 import java.util.ArrayList;
 import java.util.LinkedList;
 
@@ -102,7 +103,7 @@ public class App {
 	private static void drawShapes(SimpleFeatureSource featureSource,
 			BufferedImage image, PointTransformation pointTransformer)
 			throws IOException {
-		System.out.println("Drawing shapes");
+		System.out.println("Drawing shapes...");
 
 		ShapeWriter shapeWriter = new ShapeWriter(pointTransformer);
 		Graphics2D gr = image.createGraphics();
@@ -193,6 +194,8 @@ public class App {
 		int dupes = 0, dupesCost = 0;
 		int similar = 0, similarCost = 0;
 		
+		ImageProgram imageProgram = new ImageProgram();
+		
 		for (int y = 0; y < imageBounds.height; y++) {
 			int lastColor = -1;
 			int count = 0;
@@ -216,6 +219,8 @@ public class App {
 
 			transitions.add(new int[] { count, colorIds.get(lastColor) });
 
+			imageProgram.add(new FullLineProgram(imageProgram, new LineSpec(transitions)));	
+			
 			int colorTransitions = transitions.size();
 			if (colorTransitions > maxTransitions)
 				maxTransitions = colorTransitions;
@@ -297,6 +302,18 @@ public class App {
 			}
 			w.write(line);
 			w.write('\n');
+		}
+
+		imageProgram.optimize();
+		byte[] program = imageProgram.save();
+		File f = new File("/tmp/image.bin");
+		try (FileOutputStream os = new FileOutputStream(f)) {
+			os.write(program);
+		}
+		
+		f = new File("/tmp/image.txt");
+		try (Writer writer = new OutputStreamWriter(new FileOutputStream(f))) {
+			writer.write(imageProgram.dump());
 		}
 
 		int cost = 0;
