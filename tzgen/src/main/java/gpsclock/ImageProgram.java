@@ -149,7 +149,7 @@ public class ImageProgram implements Iterable<LineProgram> {
 		// Probably not memory-efficient
 		for (LineProgram lineProgram : lines) {
 			byteString = byteString.concat(ByteString.copyFrom(IntListPacker
-					.pack(lineProgram.encode())));
+					.pack(lineProgram.encode()).toByteArray()));
 		}
 
 		return byteString.toByteArray();

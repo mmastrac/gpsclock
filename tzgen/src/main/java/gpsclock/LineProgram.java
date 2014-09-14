@@ -17,8 +17,8 @@ public abstract class LineProgram {
 			return this.cost;
 		
 		int[] encoded = encodeData();
-		byte[] packed = IntListPacker.pack(encoded);
-		return (this.cost = packed.length);
+		BitStream packed = IntListPacker.pack(encoded);
+		return (this.cost = packed.size());
 	}
 
 	public int fullCost() {
@@ -29,6 +29,8 @@ public abstract class LineProgram {
 	
 	public final int[] encode() {
 		// TODO: we should probably pass an IntBuilder down into these methods
+		
+		// TODO: the opcode probably shouldn't be here as it's a fixed-width field we can optimize out
 		int[] data = encodeData();
 		int[] output = new int[data.length + 1];
 		System.arraycopy(data, 0, output, 1, data.length);
