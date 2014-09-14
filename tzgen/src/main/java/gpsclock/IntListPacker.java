@@ -136,9 +136,10 @@ public class IntListPacker {
 
 		int count;
 		boolean signed = ints[index] < 0;
+		int maxWidth = width;
 
 		// Attempt to find the most optimal fixed-width sequence, up to 11 bytes
-		for (count = 1; count < 11 && index + count < ints.length; count++) {
+		for (count = 1; count < 10 && index + count < ints.length; count++) {
 			// TODO: make this smarter. for now it's just greedy and we'll just
 			// look for the first byte that would waste two zeros.
 
@@ -148,7 +149,9 @@ public class IntListPacker {
 				signed = true;
 			}
 			int hi = highestOneBitPos(n);
-			boolean ok = hi >= width - 2 && hi <= width;
+			
+			// Allow a number to extend the width by one, but that's all
+			boolean ok = hi >= width - 2 && hi <= width + 1 && hi <= 17;
 
 			// Too short, just bail
 			if (!ok) {
@@ -156,12 +159,19 @@ public class IntListPacker {
 					return -1;
 
 				break;
+			} else {
+				maxWidth = Math.max(maxWidth, hi);
 			}
 		}
+		
+		width = maxWidth;
 
 		bits.add(FIXED_WIDTH_SEQUENCE_HEADER);
 		bits.add(signed);
 
+//		System.out.println("fixed: width=" + width + " count=" + count + " signed=" + signed);
+//		System.out.println(Arrays.toString(Arrays.copyOfRange(ints, index, index + count)));
+		
 		bits.addUnsignedInt(width - 2, 4);
 		bits.addUnsignedInt(count - 3, 3);
 
@@ -177,39 +187,9 @@ public class IntListPacker {
 		return index + count;
 	}
 
-	// Hack
 	private static int highestOneBitPos(int n) {
-		int hi = Integer.highestOneBit(n);
-		if (hi == 0)
-			return 0;
-		if (hi == 1)
-			return 1;
-		if (hi == 2)
-			return 2;
-		if (hi == 4)
-			return 3;
-		if (hi == 8)
-			return 4;
-		if (hi == 16)
-			return 5;
-		if (hi == 32)
-			return 6;
-		if (hi == 64)
-			return 7;
-		if (hi == 128)
-			return 8;
-		if (hi == 256)
-			return 9;
-		if (hi == 512)
-			return 10;
-		if (hi == 1024)
-			return 11;
-		if (hi == 2048)
-			return 12;
-		if (hi == 4096)
-			return 13;
-		
-		throw new IllegalArgumentException("Too large");
+		int hi = Integer.numberOfLeadingZeros(n);
+		return 32 - hi;
 	}
 
 	public static int[] unpack(BitStream bits, int offset, int length) {
@@ -230,10 +210,14 @@ public class IntListPacker {
 				} else {
 					ints.add(n);
 				}
+				
+				System.out.println("small: " + n);
 			} else if (h1 == MEDIUM_NUMBER_HEADER[0] && h2 == MEDIUM_NUMBER_HEADER[1]) {
 				int n = bits.getUnsignedInt(offset, 8) + 16;
 				offset += 8;
 				ints.add(n);
+
+				System.out.println("medium: " + n);
 			} else if (h1 == LARGE_NUMBER_HEADER[0] && h2 == LARGE_NUMBER_HEADER[1]) {
 				int s = bits.get(offset++);
 				int n = bits.getUnsignedInt(offset, 14);
@@ -241,6 +225,8 @@ public class IntListPacker {
 					n = -n;
 				offset += 14;
 				ints.add(n);
+
+				System.out.println("large: " + n);
 			} else if (h1 == FIXED_WIDTH_SEQUENCE_HEADER[0] && h2 == FIXED_WIDTH_SEQUENCE_HEADER[1]) {
 				int h3 = bits.get(offset++);
 				if (h3 == FIXED_WIDTH_SEQUENCE_HEADER[2]) {
@@ -258,6 +244,8 @@ public class IntListPacker {
 							n = -n;
 						ints.add(n);
 					}
+
+					System.out.println("fixed: width=" + width + " count=" + count + " signed=" + signed);
 				}
 			}
 		}

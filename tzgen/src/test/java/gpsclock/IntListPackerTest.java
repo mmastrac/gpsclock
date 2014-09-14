@@ -11,13 +11,13 @@ public class IntListPackerTest {
 	public void test1() {
 		test(new int[] { 1 });
 	}
-	
+
 	@Test
 	public void testSmallInts() {
 		for (int i = 2; i < 16; i++)
 			test(new int[] { i });
 	}
-	
+
 	@Test
 	public void test16() {
 		test(new int[] { 16 });
@@ -35,6 +35,11 @@ public class IntListPackerTest {
 	}
 
 	@Test
+	public void testSimpleList2() {
+		test(new int[] { 1, 2, 3, 4, 5, 9 });
+	}
+
+	@Test
 	public void testSimpleSignedList() {
 		test(new int[] { 1, 2, -3, 4, -5 });
 	}
@@ -42,6 +47,11 @@ public class IntListPackerTest {
 	@Test
 	public void testSimpleIntMultiSignList() {
 		test(new int[] { 1, -1, 1, -1, 1, -1, 2, -3 });
+	}
+
+	@Test
+	public void testSimpleIntMultiSignList2() {
+		test(new int[] { -1, -1, 1, -1, 1, -1, 2, -3 });
 	}
 
 	@Test
@@ -79,10 +89,16 @@ public class IntListPackerTest {
 				365 };
 		test(in);
 	}
+	
+	@Test
+	public void testRealSequence3() {
+		int[] in = new int[] { -64, 89, -123, 119, -17, 34, -127, 173, -84 };
+		test(in);
+	}
 
 	private void test(int[] in) {
 		BitStream out = IntListPacker.pack(in);
-//		System.out.println(in.length + " -> " + ((out.size() + 1) / 8 + 1));
+		System.out.println(in.length + " -> " + ((out.size() + 1) / 8 + 1));
 		int[] unpacked = IntListPacker.unpack(out, 0, out.size());
 		assertEquals(Arrays.toString(in), Arrays.toString(unpacked));
 	}

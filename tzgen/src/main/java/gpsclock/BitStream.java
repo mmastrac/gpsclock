@@ -60,6 +60,9 @@ public class BitStream {
 			add(n & 1);
 			n >>= 1;
 		}
+		
+		if (n != 0)
+			throw new IllegalArgumentException("Tried to write a fatter int than width would allow: " + width);
 	}
 
 	public void add(boolean signed) {

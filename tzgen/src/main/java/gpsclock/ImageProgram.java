@@ -63,7 +63,7 @@ public class ImageProgram implements Iterable<LineProgram> {
 	 */
 	public void optimize() {
 		int initialCost = cost();
-		System.out.println("Initial cost = " + initialCost);
+		System.out.println("Initial cost = " + initialCost / 8);
 		int hashCode = hashCode();
 		System.out.println("Initial hash = " + hashCode());
 
@@ -74,39 +74,43 @@ public class ImageProgram implements Iterable<LineProgram> {
 			LineProgram lowestCostProgram = new FullLineProgram(this, thisLine);
 			int minCost = lowestCostProgram.cost();
 
-			// Compute the lowest cost encoding over a window of the last 50
-			// lines
-			for (int j = Math.max(0, i - 50); j < i; j++) {
-				LineProgram refLineProgram = lines.get(j);
-				int refIndex = j;
-
-				// Dereference any dupe programs
-				while (refLineProgram instanceof DuplicateLineProgram) {
-					refIndex = ((DuplicateLineProgram) refLineProgram).source();
-					refLineProgram = get(refIndex);
-				}
-
-				// We don't want to consider reference chains this big
-				if (refLineProgram.depth() > 50) {
-					// System.out.println("Bailing on a too-long reference chain");
-					continue;
-				}
-
-				LineSpec refLine = refLineProgram.compute();
-				if (thisLine.equals(refLine)) {
-					lowestCostProgram = new DuplicateLineProgram(this, refIndex);
-					break;
-				}
-
-				LineProgram candidate = computeLowestCostProgram(thisLine,
-						refLine, refIndex);
-				
-				// Choose this candidate if it's the lowest cost, or the same
-				// cost and a lower depth
-				if (candidate.cost() < minCost || candidate.cost() == minCost
-						&& candidate.depth() < lowestCostProgram.depth()) {
-					lowestCostProgram = candidate;
-					minCost = candidate.cost();
+			// If the previous line has a depth of 50, let's take that as a hint
+			// that we need a fully-encoded line
+			if (get(i - 1).depth() < 50) {
+				// Compute the lowest cost encoding over a window of the last 50
+				// lines
+				for (int j = Math.max(0, i - 100); j < i; j++) {
+					LineProgram refLineProgram = lines.get(j);
+					int refIndex = j;
+	
+					// Dereference any dupe programs
+					while (refLineProgram instanceof DuplicateLineProgram) {
+						refIndex = ((DuplicateLineProgram) refLineProgram).source();
+						refLineProgram = get(refIndex);
+					}
+	
+					// We don't want to consider reference chains this big
+					if (refLineProgram.depth() > 50) {
+						// System.out.println("Bailing on a too-long reference chain");
+						continue;
+					}
+	
+					LineSpec refLine = refLineProgram.compute();
+					if (thisLine.equals(refLine)) {
+						lowestCostProgram = new DuplicateLineProgram(this, refIndex);
+						break;
+					}
+	
+					LineProgram candidate = computeLowestCostProgram(thisLine,
+							refLine, refIndex);
+					
+					// Choose this candidate if it's the lowest cost, or the same
+					// cost and a lower depth
+					if (candidate.cost() < minCost || candidate.cost() == minCost
+							&& candidate.depth() < lowestCostProgram.depth()) {
+						lowestCostProgram = candidate;
+						minCost = candidate.cost();
+					}
 				}
 			}
 
@@ -136,7 +140,7 @@ public class ImageProgram implements Iterable<LineProgram> {
 		double pct = Math.round(((initialCost - finalCost)
 				/ (double) initialCost * 10000))
 				/ (double) 100;
-		System.out.println("Final cost = " + finalCost + " " + pct + "%");
+		System.out.println("Final cost = " + finalCost / 8 + " " + pct + "%");
 		System.out.println("Final hash = " + hashCode());
 	}
 
