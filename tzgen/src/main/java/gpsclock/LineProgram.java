@@ -40,4 +40,6 @@ public abstract class LineProgram {
 	public abstract LineSpec compute();
 	
 	public abstract int opcode();
+	
+	public abstract int depth();
 }

@@ -29,7 +29,7 @@ public class IntListPacker {
 
 	// Encoding tags:
 	// 000000xxx: 0s sequence, xxx encodes 1-9
-	// 00xxxx: 1 -> 15
+	// 00xxxx: 1 -> 15ww
 	// 01xxxxxxxx: 16->261
 	// 11sxxxxxx xxxxxx xx: large number (s = sign, if s == 0, add 262 to value)
 	// 101(offset)(length)xxxxxxxx...: offset sequence, length encodes 2-10
@@ -83,7 +83,8 @@ public class IntListPacker {
 			} else {
 //				System.out.println("large: " + v);
 				bits.add(LARGE_NUMBER_HEADER);
-				bits.addUnsignedInt(v, 14);
+				bits.add(v < 0);
+				bits.addUnsignedInt(Math.abs(v), 14);
 			}
 			
 			i++;

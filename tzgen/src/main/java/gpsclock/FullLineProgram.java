@@ -34,4 +34,9 @@ public class FullLineProgram extends LineProgram {
 	public String toString() {
 		return "FULL " + lineSpec;
 	}
+	
+	@Override
+	public int depth() {
+		return 0;
+	}
 }

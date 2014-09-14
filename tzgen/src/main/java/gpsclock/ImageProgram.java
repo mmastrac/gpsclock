@@ -67,41 +67,50 @@ public class ImageProgram implements Iterable<LineProgram> {
 		int hashCode = hashCode();
 		System.out.println("Initial hash = " + hashCode());
 
-		int lastLineIndex = 0;
 		for (int i = 1; i < lines.size(); i++) {
-			// Force a full encoding every 25 lines
-			// TODO: this is a bit of a hack -- we should probably be re-costing
-			// a set of lines every once in a while to see if a full re-encoding
-			// would be better
-			if (i - lastLineIndex > 50) {
-				lastLineIndex = i;
-				continue;
-			}
-
 			LineSpec thisLine = lines.get(i).compute();
-			LineSpec lastLine = lines.get(lastLineIndex).compute();
-			LineSpec previousLine = lines.get(i - 1).compute();
 
-			if (thisLine.equals(previousLine)) {
-				// Shortcut
-				set(i, new DuplicateLineProgram(this, i - 1));
-			} else {
-				LineProgram lowestCostProgram = computeLowestCostProgram(
-						thisLine, lastLine, lastLineIndex);
-				set(i, lowestCostProgram);
-				if (lowestCostProgram instanceof FullLineProgram) {
-					// This line becomes the next line reference
-					lastLineIndex = i;
+			// The initial candidate is a full encoding
+			LineProgram lowestCostProgram = new FullLineProgram(this, thisLine);
+			int minCost = lowestCostProgram.cost();
+
+			// Compute the lowest cost encoding over a window of the last 50
+			// lines
+			for (int j = Math.max(0, i - 50); j < i; j++) {
+				LineProgram refLineProgram = lines.get(j);
+				int refIndex = j;
+
+				// Dereference any dupe programs
+				while (refLineProgram instanceof DuplicateLineProgram) {
+					refIndex = ((DuplicateLineProgram) refLineProgram).source();
+					refLineProgram = get(refIndex);
 				}
 
-				LineProgram lowestCostProgramForPreviousLine = computeLowestCostProgram(
-						thisLine, previousLine, i - 1);
+				// We don't want to consider reference chains this big
+				if (refLineProgram.depth() > 50) {
+					// System.out.println("Bailing on a too-long reference chain");
+					continue;
+				}
 
-				if (lowestCostProgramForPreviousLine.cost() < lowestCostProgram
-						.cost()) {
-					set(i, lowestCostProgramForPreviousLine);
+				LineSpec refLine = refLineProgram.compute();
+				if (thisLine.equals(refLine)) {
+					lowestCostProgram = new DuplicateLineProgram(this, refIndex);
+					break;
+				}
+
+				LineProgram candidate = computeLowestCostProgram(thisLine,
+						refLine, refIndex);
+				
+				// Choose this candidate if it's the lowest cost, or the same
+				// cost and a lower depth
+				if (candidate.cost() < minCost || candidate.cost() == minCost
+						&& candidate.depth() < lowestCostProgram.depth()) {
+					lowestCostProgram = candidate;
+					minCost = candidate.cost();
 				}
 			}
+
+			set(i, lowestCostProgram);
 
 			if (hashCode() != hashCode) {
 				System.out.println("hash changed");
@@ -171,7 +180,10 @@ public class ImageProgram implements Iterable<LineProgram> {
 
 	public String dump() {
 		StringBuilder builder = new StringBuilder();
+		int index = 0;
 		for (LineProgram lineProgram : lines) {
+			builder.append(index++);
+			builder.append('\t');
 			builder.append(lineProgram);
 			builder.append('\n');
 		}

@@ -37,4 +37,9 @@ public abstract class RelativeLineProgram extends LineProgram {
 	}
 	
 	protected abstract int[] encodeRelative();
+	
+	@Override
+	public int depth() {
+		return imageProgram.get(source).depth() + 1;
+	}
 }

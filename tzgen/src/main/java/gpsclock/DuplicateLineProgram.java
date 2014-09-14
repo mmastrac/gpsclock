@@ -27,4 +27,8 @@ public class DuplicateLineProgram extends RelativeLineProgram {
 	public String toString() {
 		return "DUPE " + source;
 	}
+
+	public int source() {
+		return source;
+	}
 }
