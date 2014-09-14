@@ -128,13 +128,19 @@ public class IntListPacker {
 			return -1;
 
 		int i;
+		boolean signed = false;
 
 		// Attempt to find the most optimal fixed-width sequence, up to 11 bytes
 		for (i = 0; i < 11 && index + i < ints.length; i++) {
 			// TODO: make this smarter. for now it's just greedy and we'll just
 			// look for the first byte that would waste two zeros.
 
-			boolean ok = Integer.highestOneBit(ints[index + i]) >= width - 2;
+			int n = ints[index + i];
+			if (n < 0) {
+				n = Math.abs(n);
+				signed = true;
+			}
+			boolean ok = Integer.highestOneBit(n) >= width - 2;
 
 			// Too short, just bail
 			if (!ok) {
@@ -149,13 +155,19 @@ public class IntListPacker {
 //		System.out.println("offset sequence: width = " + width + ", length = " + i);
 
 		bits.add(FIXED_WIDTH_SEQUENCE_HEADER);
+		bits.add(signed);
 
 		bits.addUnsignedInt(width - 2, 4);
 		bits.addUnsignedInt(i - 3, 3);
 
-		for (int j = 0; j < i; j++)
-			bits.addUnsignedInt(ints[index + j], width);
-
+		for (int j = 0; j < i; j++) {
+			int n = ints[index + j];
+			if (signed) {
+				bits.add(n < 0);
+			}
+			bits.addUnsignedInt(n, width);
+		}
+		
 		return index + i + 1;
 	}
 

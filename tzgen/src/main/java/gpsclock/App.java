@@ -36,24 +36,35 @@ public class App {
 	public static void main(String[] args) throws Exception {
 		File file = new File("/tmp/world/tz_world.shp");
 		File output = new File("/tmp/output.dat");
+		File outputImage = new File("/tmp/world.png");
 
 		FileDataStore store = FileDataStoreFinder.getDataStore(file);
 		SimpleFeatureSource featureSource = store.getFeatureSource();
 
-		Rectangle imageBounds = new Rectangle(11000, 5400);
-		BufferedImage image = createImage(imageBounds);
+		Rectangle imageBounds;
+		BufferedImage image;
 
 		TIntIntHashMap colorIds = computeColorIds(featureSource);
 
-		PointTransformation pointTransformer = (src, dest) -> {
-			dest.setLocation((src.x + 180) / 360 * imageBounds.width,
-					(1 - (src.y + 90) / 180) * imageBounds.height);
-		};
+//		outputImage.delete();
+		if (outputImage.exists()) {
+			System.out.println("Reading cached image...");
+			image = ImageIO.read(outputImage);
+			imageBounds = new Rectangle(image.getWidth(), image.getHeight());
+		} else {
+			imageBounds = new Rectangle(11000, 5400);
+			image = createImage(imageBounds);
 
-		computeVoroni(featureSource, image, pointTransformer);
-		drawShapes(featureSource, image, pointTransformer);
+			PointTransformation pointTransformer = (src, dest) -> {
+				dest.setLocation((src.x + 180) / 360 * imageBounds.width,
+						(1 - (src.y + 90) / 180) * imageBounds.height);
+			};
 
-		ImageIO.write(image, "png", new File("/tmp/world.png"));
+			computeVoroni(featureSource, image, pointTransformer);
+			drawShapes(featureSource, image, pointTransformer);
+
+			ImageIO.write(image, "png", outputImage);
+		}
 
 		try (BufferedWriter w = new BufferedWriter(new OutputStreamWriter(
 				new FileOutputStream(output)))) {
@@ -61,10 +72,11 @@ public class App {
 		}
 	}
 
-	private static TIntIntHashMap computeColorIds(SimpleFeatureSource featureSource)
-			throws IOException {
+	private static TIntIntHashMap computeColorIds(
+			SimpleFeatureSource featureSource) throws IOException {
 		TIntIntHashMap ids = new TIntIntHashMap();
 		TIntObjectHashMap<String> hashes = new TIntObjectHashMap<>();
+		ids.put(0xffffffff, 0);
 		FeatureIterator<SimpleFeature> it = featureSource.getFeatures()
 				.features();
 		while (it.hasNext()) {
@@ -73,16 +85,15 @@ public class App {
 			int c = getFeatureColor(f);
 			String r = hashes.putIfAbsent(c, tz);
 			if (r != null && !r.equals(tz)) {
-				throw new RuntimeException("Duplicate hash detected: "
-						+ c + " "
-						+ hashes.get(c) + " " + tz);
+				throw new RuntimeException("Duplicate hash detected: " + c
+						+ " " + hashes.get(c) + " " + tz);
 			}
 
 			if (!ids.containsKey(c)) {
 				ids.put(c, ids.size());
 			}
 		}
-		
+
 		return ids;
 	}
 
@@ -139,21 +150,34 @@ public class App {
 					getFeatureColor(f));
 		}
 
-		int skip = 25;
-		for (int x = 0; x < imageBounds.width; x += skip) {
-			for (int y = 0; y < imageBounds.height; y += skip) {
+		int skip = 1;
+		int halfSkip = skip / 2;
+		int[][] seedArray = seeds.keySet().toArray(new int[seeds.size()][]);
+		int seedCount = seedArray.length;
+		Color[] colors = new Color[seedCount];
+		for (int i = 0; i < colors.length; i++) {
+			colors[i] = new Color(seeds.get(seedArray[i]), false);
+		}
+
+		int w = imageBounds.width;
+		int h = imageBounds.height;
+		for (int x = 0; x < w; x += skip) {
+			for (int y = 0; y < h; y += skip) {
 				long minDist = Long.MAX_VALUE;
-				int[] closest = null;
-				for (int[] seed : seeds.keySet()) {
-					long dist = (x - seed[0]) * (x - seed[0]) + (y - seed[1])
-							* (y - seed[1]);
+				int closest = -1;
+				for (int i = 0; i < seedCount; i++) {
+					int[] seed = seedArray[i];
+					int xp = x + halfSkip - seed[0];
+					int yp = y + halfSkip - seed[1];
+					long dist = xp * xp + yp * yp;
 					if (dist < minDist) {
-						closest = seed;
+						closest = i;
 						minDist = dist;
 					}
 				}
 
-				gr.setPaint(new Color(seeds.get(closest), false));
+				// image.setRGB(x, y, 0);
+				gr.setPaint(colors[closest]);
 				gr.fillRect(x, y, skip, skip);
 			}
 
@@ -181,11 +205,12 @@ public class App {
 	}
 
 	private static void computeTransitions(Rectangle imageBounds,
-			BufferedImage image, TIntIntHashMap colorIds, BufferedWriter w) throws IOException {
+			BufferedImage image, TIntIntHashMap colorIds, BufferedWriter w)
+			throws IOException {
 		System.out.println("Computing transitions...");
-		
+
 		ImageProgram imageProgram = new ImageProgram();
-		
+
 		for (int y = 0; y < imageBounds.height; y++) {
 			int lastColor = -1;
 			int count = 0;
@@ -198,7 +223,8 @@ public class App {
 				}
 				if (lastColor != c) {
 					if (count > 0) {
-						transitions.add(new int[] { count, colorIds.get(lastColor) });
+						transitions.add(new int[] { count,
+								colorIds.get(lastColor) });
 					}
 					lastColor = c;
 					count = 0;
@@ -209,7 +235,8 @@ public class App {
 
 			transitions.add(new int[] { count, colorIds.get(lastColor) });
 
-			imageProgram.add(new FullLineProgram(imageProgram, new LineSpec(transitions)));	
+			imageProgram.add(new FullLineProgram(imageProgram, new LineSpec(
+					transitions)));
 		}
 
 		imageProgram.optimize();
@@ -218,7 +245,7 @@ public class App {
 		try (FileOutputStream os = new FileOutputStream(f)) {
 			os.write(program);
 		}
-		
+
 		f = new File("/tmp/image.txt");
 		try (Writer writer = new OutputStreamWriter(new FileOutputStream(f))) {
 			writer.write(imageProgram.dump());

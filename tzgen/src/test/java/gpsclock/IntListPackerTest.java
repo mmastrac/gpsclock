@@ -12,6 +12,12 @@ public class IntListPackerTest {
 	}
 
 	@Test
+	public void testSimpleIntMultiSignList() {
+		byte[] data = IntListPacker.pack(new int[] { 1, -1, 1, -1, 1, -1, 2, -3 });
+		System.out.println(Arrays.toString(data));
+	}
+
+	@Test
 	public void testZeros() {
 		byte[] data = IntListPacker.pack(new int[] { 0, 0, 0 });
 		System.out.println(Arrays.toString(data));

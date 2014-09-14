@@ -47,4 +47,8 @@ public class BitStream {
 			n >>= 1;
 		}
 	}
+
+	public void add(boolean signed) {
+		add(signed ? 1 : 0);
+	}
 }

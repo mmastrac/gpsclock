@@ -20,7 +20,7 @@ public abstract class RelativeLineProgram extends LineProgram {
 		if (computed != null)
 			return computed;
 		
-		return (computed = computeInternal(((FullLineProgram) imageProgram.get(source)).getSpec()));
+		return (computed = computeInternal(imageProgram.get(source).compute()));
 	}
 	
 	/**
