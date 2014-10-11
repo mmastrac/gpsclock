@@ -1,4 +1,4 @@
-Cmp-Mod V01 Created by CvPcb (2013-07-07 BZR 4022)-stable date = 9/9/2014 7:48:40 AM
+Cmp-Mod V01 Created by CvPcb (2013-07-07 BZR 4022)-stable date = 10/11/2014 1:55:16 PM
 
 BeginCmp
 TimeStamp = /540E6CD8;
@@ -9,14 +9,42 @@ EndCmp
 
 BeginCmp
 TimeStamp = /540E5D54;
-Reference = P1;
+Reference = IN1;
 ValeurCmp = CONN_01X10;
 IdModule  = SIL-10;
 EndCmp
 
 BeginCmp
+TimeStamp = /5439921E;
+Reference = MH1;
+ValeurCmp = MOUNTING_HOLE;
+IdModule  = 3MM_HOLE;
+EndCmp
+
+BeginCmp
+TimeStamp = /54399269;
+Reference = MH2;
+ValeurCmp = MOUNTING_HOLE;
+IdModule  = 3MM_HOLE;
+EndCmp
+
+BeginCmp
+TimeStamp = /5439922D;
+Reference = MH3;
+ValeurCmp = MOUNTING_HOLE;
+IdModule  = 3MM_HOLE;
+EndCmp
+
+BeginCmp
+TimeStamp = /54399250;
+Reference = MH4;
+ValeurCmp = MOUNTING_HOLE;
+IdModule  = 3MM_HOLE;
+EndCmp
+
+BeginCmp
 TimeStamp = /540E5C1D;
-Reference = P2;
+Reference = OUT1;
 ValeurCmp = CONN_01X10;
 IdModule  = SIL-10;
 EndCmp
@@ -33,6 +61,13 @@ TimeStamp = /540E7CC6;
 Reference = U1;
 ValeurCmp = TLC5940NT;
 IdModule  = DIP-28__300;
+EndCmp
+
+BeginCmp
+TimeStamp = /543992A7;
+Reference = W1;
+ValeurCmp = TEST;
+IdModule  = TEST_POINT_2PADS;
 EndCmp
 
 EndListe
