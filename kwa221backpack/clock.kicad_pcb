@@ -5,7 +5,7 @@
     (no_connects 0)
     (area 39.352858 34.239999 101.357712 113.080001)
     (thickness 1.6)
-    (drawings 24)
+    (drawings 25)
     (tracks 206)
     (zones 0)
     (modules 10)
@@ -640,6 +640,9 @@
     )
   )
 
+  (gr_text "TODO: Make this lip larger for the mounting holes" (at 99.568 33.02) (layer F.Cu)
+    (effects (font (size 1.5 1.5) (thickness 0.3)))
+  )
   (gr_line (start 96.52 34.29) (end 96.52 38.1) (angle 90) (layer Edge.Cuts) (width 0.1))
   (gr_line (start 48.26 34.29) (end 96.52 34.29) (angle 90) (layer Edge.Cuts) (width 0.1))
   (gr_line (start 48.26 38.1) (end 48.26 34.29) (angle 90) (layer Edge.Cuts) (width 0.1))
