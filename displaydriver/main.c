@@ -5,7 +5,7 @@
 #include <math.h>
 #include "tlc5940.h"
 
-#define NUM_TLCS 4
+#define NUM_TLCS 2
 
 // BLANK + XLAT
 #define BLANK_PORT B
@@ -26,14 +26,16 @@
 // 16 channels worth of grayscale data (12 bits)
 uint8_t gs_data[24 * NUM_TLCS] = { 0 };
 
-void set_channel_gs(int channel, int value) {
+void set_channel_gs(int channel, uint16_t value) {
+	uint8_t* base = gs_data + sizeof(gs_data) - ((channel >> 1) * 3);
+
 	// The lower array index contains the higher bits
 	if (channel & 1) {
-		gs_data[24 * NUM_TLCS - channel - 1] = (gs_data[24 * NUM_TLCS - channel - 1] & 0x0f) | ((value & 0xf) << 4);
-		gs_data[24 * NUM_TLCS - channel - 2] = value >> 4;
+		base[-3] = value >> 4;
+		base[-2] = value << 8 | (base[-2] & 0x0f);
 	} else {
-		gs_data[24 * NUM_TLCS - channel - 1] = value & 0xff;
-		gs_data[24 * NUM_TLCS - channel - 2] = (gs_data[24 * NUM_TLCS - channel - 2] & 0xf0) | (value >> 8);
+		base[-2] = (value >> 8) | (base[-2] & 0xf0);
+		base[-1] = value & 0xff;
 	}
 }
 
@@ -71,7 +73,7 @@ int main(void) {
 
 	int current_cycle = 1;
 
-	int gs_data_start = 4096 - sizeof(gs_data) * 8;
+	int gs_data_start = 4096 / 8 - sizeof(gs_data);
 
 	for (;;) {
 		setHigh(BLANK);
@@ -79,29 +81,36 @@ int main(void) {
 		current_cycle++;
 		setLow(BLANK);
 
-		set_channel_gs(0, current_brightness);
+		for (int i = 0; i < 32; i += 2) {
+			set_channel_gs(i + 0, current_brightness);
+			set_channel_gs(i + 1, current_brightness);
+		}
+		_delay_us(10);
 
-		for (int i = 0; i < 4096; i++) {
-			if (readState(DATAIN)) {
-
-			}
-
-			int bit;
-			if (i > gs_data_start) {
-				int gs_ofs = i - gs_data_start;
-				int byte = gs_data[gs_ofs >> 3];
-				bit = byte & (1 << (7 - (gs_ofs & 7)));
+		for (int i = 0; i < 4096 / 8; i++) {
+			int byte;
+			if (i >= gs_data_start) {
+				byte = gs_data[i - gs_data_start];
 			} else {
-				bit = 0;
+				byte = 0;
 			}
 
-			if (bit) {
-				setHigh(SIN);
-			} else {
-				setLow(SIN);
-			}
+			for (int j = 0; j < 8; j++) {
+				if (readState(DATAIN)) {
+					// This is where the 1-wire code goes
+				}
 
-			pulse(GSCLK);
+				int bit = byte & (1 << 7);
+				byte <<= 1;
+
+				if (bit) {
+					setHigh(SIN);
+				} else {
+					setLow(SIN);
+				}
+
+				pulse(GSCLK);
+			}
 		}
 
 		// for (;;) {}
