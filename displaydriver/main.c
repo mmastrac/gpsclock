@@ -4,6 +4,7 @@
 #include <util/delay.h>
 #include <math.h>
 #include "tlc5940.h"
+#include "sin_cycle.h"
 
 #define NUM_TLCS 2
 
@@ -71,20 +72,22 @@ int main(void) {
 
 	sei();
 
-	int current_cycle = 1;
-
+	int current_cycle = 0;
 	int gs_data_start = 4096 / 8 - sizeof(gs_data);
 
 	for (;;) {
+		_delay_us(10);
+
 		setHigh(BLANK);
-		int current_brightness = sin(ticks() / 10000.0) * 2047.0 + 2048.0;
-		current_cycle++;
+		current_cycle += 10;
+		int current_brightness = pgm_read_word(&SIN_CYCLE[(int)(ticks() / 40.0) % 1024]);
 		setLow(BLANK);
 
 		for (int i = 0; i < 32; i += 2) {
 			set_channel_gs(i + 0, current_brightness);
 			set_channel_gs(i + 1, current_brightness);
 		}
+
 		_delay_us(10);
 
 		for (int i = 0; i < 4096 / 8; i++) {
@@ -103,12 +106,7 @@ int main(void) {
 				int bit = byte & (1 << 7);
 				byte <<= 1;
 
-				if (bit) {
-					setHigh(SIN);
-				} else {
-					setLow(SIN);
-				}
-
+				setState(SIN, bit);
 				pulse(GSCLK);
 			}
 		}

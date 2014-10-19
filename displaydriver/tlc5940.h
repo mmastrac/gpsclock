@@ -14,6 +14,7 @@
 
 #define setInput(pin) clearBit(DDRID(pin), PINVAR(pin))
 #define setOutput(pin) setBit(DDRID(pin), PINVAR(pin))
+#define setState(pin, value) do { if (value) { setHigh(pin); } else { setLow(pin); } } while (0)
 #define setLow(pin) clearBit(PORTID(pin), PINVAR(pin))
 #define setHigh(pin) setBit(PORTID(pin), PINVAR(pin))
 #define pulse(pin) do { setHigh(pin); setLow(pin); } while (0)
