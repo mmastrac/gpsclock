@@ -4,6 +4,8 @@
 #include <util/delay.h>
 #include <math.h>
 #include <stdlib.h>
+#include <stdbool.h>
+
 #include "tlc5940.h"
 #include "sin_cycle.h"
 #include "font.h"
@@ -60,16 +62,28 @@ uint16_t get_channel_gs(int channel) {
 
 }
 
-typedef enum { IDLE, RESET_0, RECEIVE_IDLE } one_wire_state_t;
+// Tick counter
 
 volatile uint32_t ticks_ = 0;
-volatile uint16_t input_count = 0;
-volatile uint8_t serial_value = 0;
-volatile uint8_t serial_counter = 0;
 
 ISR(TIMER1_OVF_vect) {
 	ticks_++;
 }
+
+uint16_t ticks() {
+	cli();
+	uint16_t tmp = ticks_ & 1023;
+	sei();
+	return tmp;
+}
+
+// Serial 
+
+volatile uint8_t uart_buffer[32] = { 0 };
+volatile uint8_t* uart_start = &uart_buffer[0];
+volatile uint8_t* uart_end = &uart_buffer[0];
+volatile uint8_t serial_value = 0;
+volatile uint8_t serial_counter = 0;
 
 ISR(PCINT0_vect) {
 	int dataIn = readState(DATAIN);
@@ -78,7 +92,6 @@ ISR(PCINT0_vect) {
 	// with a read of zero
 	if (!dataIn) {
 		// Start bit detection
-		input_count++;
 
 		// Disable the pin-change interrupt as we transition to timers
 		BIT_CLEAR(PCMSK, PCINT4);
@@ -99,6 +112,11 @@ ISR(TIMER0_COMPA_vect) {
 	TCNT0 = 0;
 
 	if (serial_counter == 8) {
+		*uart_end = serial_value;
+		uart_end++;
+		if (uart_end > uart_buffer + sizeof(uart_buffer))
+			uart_end = uart_buffer;
+
 		display[0] = display[1];
 		display[1] = serial_value & 0x7f;
 		// display[0] = hex[serial_value >> 4 & 0xf];
@@ -119,11 +137,23 @@ ISR(TIMER0_COMPA_vect) {
 	serial_counter++;
 }
 
-uint16_t ticks() {
+bool serial_available() {
 	cli();
-	uint16_t tmp = ticks_ & 1023;
+	bool ret = uart_end != uart_start;
 	sei();
-	return tmp;
+
+	return ret;
+}
+
+uint8_t serial_read() {
+	cli();
+	uint8_t ret = *uart_start;
+	uart_start++;
+	if (uart_start > uart_buffer + sizeof(uart_buffer))
+		uart_start = uart_buffer;
+	sei();
+
+	return ret;
 }
 
 int main(void) {
