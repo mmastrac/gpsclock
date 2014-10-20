@@ -14,8 +14,7 @@
 #include "pins.h"
 
 char* hex = "0123456789ABCDEF";
-
-volatile uint8_t display[2] = { 'x', 'x' };
+uint8_t display[2] = { 'x', 'x' };
 
 int main(void) {
 	setOutput(BLANK);
@@ -36,6 +35,10 @@ int main(void) {
 	int gs_data_start = GS_TICKS / 8 - get_gs_data_size();
 	uint8_t* gs_data = get_gs_data();
 
+	bool lockup = false;
+
+	uint16_t input_count = 0;
+
 	for (;;) {
 		_delay_us(10);
 
@@ -46,16 +49,32 @@ int main(void) {
 		current_cycle++;
 
 		// Protocol: S 'char' 'char'
-		if (serial_available() >= 3) {
-			if (serial_read() == 'S') {
-				display[0] = serial_read();
-				display[1] = serial_read();
+		if (!lockup) {
+			while (serial_available() >= 3) {
+				uint8_t cmd = serial_read();
+				if (cmd == 'S') {
+					input_count++;
+					if (input_count > 99)
+						input_count = 0;
+					display[1] = '0' + (input_count % 10);
+					display[0] = '0' + (input_count / 10);
+					serial_read();
+					serial_read();
+
+					if (serial_available() > 0) {
+						display[0] = 'O';
+						display[1] = '0' + serial_available();
+						lockup = true;
+						break;
+					}
+				} else {
+					display[0] = 'E';
+					display[1] = cmd;
+					lockup = true;
+					break;
+				}
 			}
 		}
-
-		// uint16_t display_value = input_count;
-		// display[0] = hex[(display_value >> 4) & 0xf];
-		// display[1] = hex[display_value & 0xf];
 
 		for (int i = 0; i < sizeof(display); i++) {
 			int glyph = font(display[i]);
@@ -92,8 +111,6 @@ int main(void) {
 				setLow(GSCLK);
 			}
 		}
-
-		// for (;;) {}
 	}
 
 	return 0;

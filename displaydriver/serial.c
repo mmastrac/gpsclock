@@ -1,5 +1,6 @@
 #include <avr/interrupt.h>
 #include <avr/io.h>
+#include <avr/cpufunc.h>
 #include "serial.h"
 #include "bitbang.h"
 #include "pins.h"
@@ -9,12 +10,14 @@
 #define SERIAL_SIZE 32
 
 volatile uint8_t uart_buffer[SERIAL_SIZE] = { 0 };
-volatile uint8_t* volatile uart_start = &uart_buffer[0];
-volatile uint8_t* volatile uart_end = &uart_buffer[0];
+uint8_t uart_start = 0;
+volatile uint8_t uart_end = 0;
+
+// The serial value we are clocking in
 volatile uint8_t serial_value = 0;
 volatile uint8_t serial_counter = 0;
 
-void _serial_push(uint8_t value);
+inline void _serial_push(uint8_t value);
 
 ISR(PCINT0_vect) {
 	int dataIn = readState(DATAIN);
@@ -60,34 +63,31 @@ ISR(TIMER0_COMPA_vect) {
 }
 
 void _serial_push(uint8_t value) {
-	*uart_end = value;
+	uart_buffer[uart_end] = value;
 	uart_end++;
-	if (uart_end > uart_buffer + SERIAL_SIZE)
-		uart_end = uart_buffer;
+	if (uart_end >= SERIAL_SIZE)
+		uart_end = 0;
 }
 
 uint8_t serial_available() {
 	cli();
-	uint8_t* start = (uint8_t*)uart_start;
-	uint8_t* end = (uint8_t*)uart_end;
+	uint8_t end = uart_end;
 	sei();
 
-	if (end == start)
+	if (end == uart_start)
 		return 0;
 
-	if (end > start)
-		return end - start;
+	if (end > uart_start)
+		return end - uart_start;
 
-	return SERIAL_SIZE - (start - end);
+	return SERIAL_SIZE - (uart_start - end);
 }
 
 uint8_t serial_read() {
-	cli();
-	uint8_t ret = *uart_start;
+	uint8_t ret = uart_buffer[uart_start];
 	uart_start++;
-	if (uart_start > uart_buffer + SERIAL_SIZE)
-		uart_start = uart_buffer;
-	sei();
+	if (uart_start >= SERIAL_SIZE)
+		uart_start = 0;
 
 	return ret;
 }
