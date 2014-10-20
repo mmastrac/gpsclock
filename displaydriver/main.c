@@ -74,7 +74,8 @@ ISR(TIMER1_OVF_vect) {
 ISR(PCINT0_vect) {
 	int dataIn = readState(DATAIN);
 
-	// Serial start bit is a zero
+	// Serial start bit is a zero, so we'll see this as a pin-change interrupt 
+	// with a read of zero
 	if (!dataIn) {
 		// Start bit detection
 		input_count++;
@@ -97,19 +98,18 @@ ISR(TIMER0_COMPA_vect) {
 	// Restart the timer
 	TCNT0 = 0;
 
-	// display[0] = 'X';
-
 	if (serial_counter == 8) {
 		display[0] = display[1];
-		display[1] = serial_value;
-		// display[1] = hex[(serial_value & 0xf)];
-		// display[0] = hex[((serial_value >> 4) & 0xf)];
-	} if (serial_counter == 9) {
-		// Stop bit
+		display[1] = serial_value & 0x7f;
+		// display[0] = hex[serial_value >> 4 & 0xf];
+		// display[1] = hex[serial_value & 0xf];
+
+		// Stop bit is a one
 
 		// Disable timer
 		TCCR0B = 0;
 		// Re-enable pin-change interrupt
+		BIT_CLEAR(GIFR, PCIF);
 		BIT_SET(PCMSK, PCINT4);
 	} else {
 		// Clock in the serial bit
@@ -190,7 +190,7 @@ int main(void) {
 			int glyph = pgm_read_word(&FONT[display[i]]);
 			for (int j = 0; j < 16; j++) {
 				if (glyph & (1 << j)) {
-					set_channel_gs(j + i * 16, current_brightness);
+					set_channel_gs(j + i * 16, 4095);
 				} else {
 					set_channel_gs(j + i * 16, 0);
 				}
