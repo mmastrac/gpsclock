@@ -3,6 +3,9 @@
 
 #define NUM_TLCS 2
 
+#define GS_TICKS 4096
+#define GS_MAX 4095
+
 uint8_t* get_gs_data();
 uint16_t get_gs_data_size();
 

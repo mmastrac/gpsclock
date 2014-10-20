@@ -6,11 +6,15 @@
 
 // Serial 
 
-volatile uint8_t uart_buffer[32] = { 0 };
-volatile uint8_t* uart_start = &uart_buffer[0];
-volatile uint8_t* uart_end = &uart_buffer[0];
+#define SERIAL_SIZE 32
+
+volatile uint8_t uart_buffer[SERIAL_SIZE] = { 0 };
+volatile uint8_t* volatile uart_start = &uart_buffer[0];
+volatile uint8_t* volatile uart_end = &uart_buffer[0];
 volatile uint8_t serial_value = 0;
 volatile uint8_t serial_counter = 0;
+
+void _serial_push(uint8_t value);
 
 ISR(PCINT0_vect) {
 	int dataIn = readState(DATAIN);
@@ -40,10 +44,7 @@ ISR(TIMER0_COMPA_vect) {
 
 	if (serial_counter == 8) {
 		// Stop bit is a one
-		*uart_end = serial_value;
-		uart_end++;
-		if (uart_end > uart_buffer + sizeof(uart_buffer))
-			uart_end = uart_buffer;
+		_serial_push(serial_value);
 
 		// Disable timer
 		TCCR0B = 0;
@@ -58,19 +59,33 @@ ISR(TIMER0_COMPA_vect) {
 	serial_counter++;
 }
 
-bool serial_available() {
+void _serial_push(uint8_t value) {
+	*uart_end = value;
+	uart_end++;
+	if (uart_end > uart_buffer + SERIAL_SIZE)
+		uart_end = uart_buffer;
+}
+
+uint8_t serial_available() {
 	cli();
-	bool ret = uart_end != uart_start;
+	uint8_t* start = (uint8_t*)uart_start;
+	uint8_t* end = (uint8_t*)uart_end;
 	sei();
 
-	return ret;
+	if (end == start)
+		return 0;
+
+	if (end > start)
+		return end - start;
+
+	return SERIAL_SIZE - (start - end);
 }
 
 uint8_t serial_read() {
 	cli();
 	uint8_t ret = *uart_start;
 	uart_start++;
-	if (uart_start > uart_buffer + sizeof(uart_buffer))
+	if (uart_start > uart_buffer + SERIAL_SIZE)
 		uart_start = uart_buffer;
 	sei();
 

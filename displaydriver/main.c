@@ -15,7 +15,7 @@
 
 char* hex = "0123456789ABCDEF";
 
-volatile uint8_t display[2] = { ' ', ' ' };
+volatile uint8_t display[2] = { 'x', 'x' };
 
 int main(void) {
 	setOutput(BLANK);
@@ -24,6 +24,8 @@ int main(void) {
 	setInput(DATAIN);
 
 	setHigh(BLANK);
+	setLow(GSCLK);
+	setLow(SIN);
 
 	initialize_ticks();
 	initialize_serial();
@@ -31,7 +33,7 @@ int main(void) {
 	sei();
 
 	int current_cycle = 0;
-	int gs_data_start = 4096 / 8 - get_gs_data_size();
+	int gs_data_start = GS_TICKS / 8 - get_gs_data_size();
 	uint8_t* gs_data = get_gs_data();
 
 	for (;;) {
@@ -43,6 +45,14 @@ int main(void) {
 
 		current_cycle++;
 
+		// Protocol: S 'char' 'char'
+		if (serial_available() >= 3) {
+			if (serial_read() == 'S') {
+				display[0] = serial_read();
+				display[1] = serial_read();
+			}
+		}
+
 		// uint16_t display_value = input_count;
 		// display[0] = hex[(display_value >> 4) & 0xf];
 		// display[1] = hex[display_value & 0xf];
@@ -51,7 +61,7 @@ int main(void) {
 			int glyph = font(display[i]);
 			for (int j = 0; j < 16; j++) {
 				if (glyph & (1 << j)) {
-					set_channel_gs(j + i * 16, 4095);
+					set_channel_gs(j + i * 16, GS_MAX);
 				} else {
 					set_channel_gs(j + i * 16, 0);
 				}
@@ -63,7 +73,7 @@ int main(void) {
 
 		_delay_us(10);
 
-		for (int i = 0; i < 4096 / 8; i++) {
+		for (int i = 0; i < GS_TICKS / 8; i++) {
 			int byte;
 			if (i >= gs_data_start) {
 				byte = gs_data[i - gs_data_start];
