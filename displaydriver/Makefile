@@ -1,5 +1,5 @@
 PRG            = main
-OBJ            = main.o
+OBJ            = main.o font.o sin_cycle.o tlc5940.o ticks.o serial.o
 #MCU_TARGET     = at90s2313
 #MCU_TARGET     = at90s2333
 #MCU_TARGET     = at90s4414
@@ -63,8 +63,9 @@ CC             = avr-gcc
 
 # Override is only needed by avr-lib build system.
 
-override CFLAGS        = -std=c99 -g -Wall -Werror $(OPTIMIZE) -mmcu=$(MCU_TARGET) $(DEFS)
-override LDFLAGS       = -Wl,-Map,$(PRG).map
+override CFLAGS        = -std=c99 -g -Wall -Werror $(OPTIMIZE) -mmcu=$(MCU_TARGET) $(DEFS) \
+							-ffunction-sections -fdata-sections -ffreestanding -flto
+override LDFLAGS       = -Wl,-Map,$(PRG).map,--gc-sections
 
 OBJCOPY        = avr-objcopy
 OBJDUMP        = avr-objdump
@@ -74,8 +75,9 @@ all: $(PRG).elf lst text eeprom
 $(PRG).elf: $(OBJ)
 	$(CC) $(CFLAGS) $(LDFLAGS) -o $@ $^ $(LIBS)
 
-# dependency:
-demo.o: demo.c iocompat.h
+# Rebuild object files if headers or Makefile changes
+%.o: %.c *.h Makefile
+	$(CC) $(CFLAGS) -c -o $@ $<
 
 clean:
 	rm -rf *.o $(PRG).elf *.eps *.png *.pdf *.bak 
