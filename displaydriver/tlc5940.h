@@ -19,7 +19,7 @@
 #define setHigh(pin) setBit(PORTID(pin), PINVAR(pin))
 #define pulse(pin) do { setHigh(pin); setLow(pin); } while (0)
 #define outputState(pin) readBit(PORTID(pin), PINVAR(pin))
-#define readState(pin) readBit(PORTID(pin), PINVAR(pin))
+#define readState(pin) readBit(PINID(pin), PINVAR(pin))
 
 #define setBit(reg, pin) ((reg) |= (1 << (pin)))
 #define clearBit(reg, pin) ((reg) &= ~(1 << (pin)))

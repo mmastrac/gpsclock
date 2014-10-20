@@ -52,7 +52,7 @@ OBJ            = main.o
 MCU_TARGET     = attiny85
 #MCU_TARGET     = attiny861
 OPTIMIZE       = -O2
-F_CPU		= 8000000UL
+F_CPU		= 16000000UL
 
 DEFS           = -DF_CPU=$(F_CPU)
 LIBS           =
@@ -63,7 +63,7 @@ CC             = avr-gcc
 
 # Override is only needed by avr-lib build system.
 
-override CFLAGS        = -std=c99 -g -Wall $(OPTIMIZE) -mmcu=$(MCU_TARGET) $(DEFS)
+override CFLAGS        = -std=c99 -g -Wall -Werror $(OPTIMIZE) -mmcu=$(MCU_TARGET) $(DEFS)
 override LDFLAGS       = -Wl,-Map,$(PRG).map
 
 OBJCOPY        = avr-objcopy
