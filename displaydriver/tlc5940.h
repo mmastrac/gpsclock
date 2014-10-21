@@ -1,7 +1,7 @@
 #pragma once
 #include <stdint.h>
 
-#define NUM_TLCS 2
+#define NUM_TLCS 4
 
 #define GS_TICKS 4096
 #define GS_MAX 4095

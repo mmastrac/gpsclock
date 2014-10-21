@@ -16,6 +16,13 @@ uint16_t ticks() {
 	return tmp;
 }
 
+uint16_t tick_epoch() {
+	cli();
+	uint16_t tmp = ticks_ >> 10;
+	sei();
+	return tmp;
+}
+
 void initialize_ticks() {
 	// Tick timer
 	// Use timer1, since it's a bizarre timer that doesn't match other AVRs

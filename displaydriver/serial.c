@@ -83,6 +83,14 @@ uint8_t serial_available() {
 	return SERIAL_SIZE - (uart_start - end);
 }
 
+void serial_drop(uint8_t count) {
+	uart_start = (uart_start + count) % SERIAL_SIZE;
+}
+
+uint8_t serial_peek(uint8_t where) {
+	return uart_buffer[(uart_start + where) % SERIAL_SIZE];
+}
+
 uint8_t serial_read() {
 	uint8_t ret = uart_buffer[uart_start];
 	uart_start++;
