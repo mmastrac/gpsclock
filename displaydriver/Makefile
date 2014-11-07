@@ -1,5 +1,5 @@
 PRG            = main
-OBJ            = main.o font.o sin_cycle.o tlc5940.o ticks.o serial.o
+OBJ            = main.o font.o sin_cycle.o tlc5940.o ticks.o serial.o calibrate.o
 #MCU_TARGET     = at90s2313
 #MCU_TARGET     = at90s2333
 #MCU_TARGET     = at90s4414
@@ -52,7 +52,7 @@ OBJ            = main.o font.o sin_cycle.o tlc5940.o ticks.o serial.o
 MCU_TARGET     = attiny85
 #MCU_TARGET     = attiny861
 OPTIMIZE       = -O2
-F_CPU		= 16000000UL
+F_CPU		= 8000000UL
 
 DEFS           = -DF_CPU=$(F_CPU)
 LIBS           =
@@ -60,6 +60,7 @@ LIBS           =
 # You should not have to change anything below here.
 
 CC             = avr-gcc
+AS             = avr-as
 
 # Override is only needed by avr-lib build system.
 
@@ -78,6 +79,9 @@ $(PRG).elf: $(OBJ)
 # Rebuild object files if headers or Makefile changes
 %.o: %.c *.h Makefile
 	$(CC) $(CFLAGS) -c -o $@ $<
+
+%.o: %.S Makefile
+	$(AS) -c -o $@ $<
 
 clean:
 	rm -rf *.o $(PRG).elf *.eps *.png *.pdf *.bak 

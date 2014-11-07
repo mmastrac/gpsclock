@@ -15,3 +15,7 @@
 // DATAIN
 #define DATAIN_PORT B
 #define DATAIN_PIN 4
+
+// DATAOUT
+#define DATAOUT_PORT B
+#define DATAOUT_PIN 3

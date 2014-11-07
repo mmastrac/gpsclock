@@ -29,13 +29,13 @@ void process_serial() {
 	while (serial_available() >= 3) {
 		uint8_t sync_byte = serial_peek(0);
 		if (sync_byte != 0xff) {
-			serial_read();
-			continue;
+			// serial_read();
+			// continue;
 
-			// display[0] = 'E';
-			// display[1] = sync_byte;
-			// lockup = true;
-			// break;
+			display[0] = 'E';
+			display[1] = sync_byte;
+			lockup = true;
+			break;
 		}
 
 		uint8_t packet_length = serial_peek(1);
@@ -116,6 +116,7 @@ int main(void) {
 	setOutput(GSCLK);
 	setOutput(SIN);
 	setInput(DATAIN);
+	setOutput(DATAOUT);
 
 	setHigh(BLANK);
 	setLow(GSCLK);
@@ -125,6 +126,12 @@ int main(void) {
 	initialize_serial();
 
 	sei();
+
+	for (;;) {
+		
+	}
+
+#if 0
 
 	int current_cycle = 0;
 	uint16_t current_tick_epoch = 0;
@@ -144,6 +151,9 @@ int main(void) {
 				current_tick_epoch = tick_epoch_cycle;
 				if (mode == 1) {
 					scrolling_counter++;
+					if (scrolling_counter == scrolling_length - 1) {
+						mode = 0;
+					}
 				}
 			}
 
@@ -168,6 +178,7 @@ int main(void) {
 
 		write_gs();
 	}
+#endif
 
 	return 0;
 }
