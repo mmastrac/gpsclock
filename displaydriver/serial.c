@@ -48,21 +48,9 @@ serial_timer_state_t serial_timer_state = A;
 ISR(TIMER0_COMPA_vect) {
 	receive_check();
 
-	switch (serial_timer_state) {
-		case A:
-			if (receive_flag == RECEIVE_A) {
-				receive_bit();
-			}
-			// Sending is always in phase A
-			send_bit();
-			break;
-		case B:
-		case C:
-		case D:
-			if (receive_flag == (receive_flag_t)serial_timer_state) {
-				receive_bit();
-			}
-			break;
+	if (serial_timer_state == A) {
+		// Sending is always in phase A
+		send_bit();
 	}
 
 	serial_timer_state = (serial_timer_state + 1) & 3;
@@ -91,8 +79,7 @@ void send_bit() {
 			case 6:
 			case 7:
 			case 8:
-				setState(DATAOUT, send_value & 1);
-				send_value >>= 1;
+				setState(DATAOUT, send_value & (1 << (send_counter - 1)));
 				break;
 			case 9:
 				// Stop bit
@@ -116,6 +103,10 @@ void receive_check() {
 			receive_counter = 0;
 		}
 	}
+
+	if (receive_flag == (receive_flag_t)serial_timer_state) {
+		receive_bit();
+	}
 }
 
 void receive_bit() {
@@ -123,6 +114,7 @@ void receive_bit() {
 		case 0:
 			// Start bit (zero)
 			if (readState(DATAIN)) {
+				_serial_push(&uart_input, 0xEE);
 				// Spurious pin change
 				receive_flag = RECEIVE_IDLE;			
 			}
@@ -238,5 +230,5 @@ void initialize_serial() {
 
 	// Enable timer interrupts -- compareA for timer0 and overflow for timer1
 	TCNT0 = 0;
-	TIMSK = _BV(OCIE0A) | _BV(TOIE1);
+	setBit(TIMSK, OCIE0A);
 }

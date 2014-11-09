@@ -1,9 +1,10 @@
 #include <avr/interrupt.h>
 #include <avr/io.h>
 #include "ticks.h"
+#include "bitbang.h"
 
 // Tick counter
-volatile uint32_t ticks_ = 0;
+volatile uint16_t ticks_ = 0;
 
 ISR(TIMER1_OVF_vect) {
 	ticks_++;
@@ -36,4 +37,6 @@ void initialize_ticks() {
 	// Restart/reset the timer
 	GTCCR = _BV(PSR1);
 	TCNT1 = 0;
+
+	setBit(TIMSK, TOIE1);
 }
