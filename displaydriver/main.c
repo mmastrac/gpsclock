@@ -5,6 +5,7 @@
 #include <stdlib.h>
 #include <stdbool.h>
 #include <avr/pgmspace.h>
+#include <avr/wdt.h>
 
 #include "bitbang.h"
 #include "sin_cycle.h"
@@ -16,7 +17,7 @@
 
 const uint8_t hex[] PROGMEM = "0123456789ABCDEF";
 uint8_t mode = 0;
-uint8_t display[4] = { ' ', ' ', ' ', ' ' };
+uint8_t display[4] = { 'v', '1', '0', '0' };
 
 uint8_t scroll_buffer[16] = { 0 };
 uint8_t scrolling_counter = 0;
@@ -24,17 +25,24 @@ uint8_t scrolling_length = 0;
 
 bool lockup = false;
 
+void soft_reset() {
+	do {
+	    wdt_enable(WDTO_15MS);  
+	    for(;;) {}
+	} while(0);
+}
+
 void process_serial() {
 	// A packet is minimum three bytes (sync, length, cmd)
 	while (serial_available() >= 3) {
 		uint8_t sync_byte = serial_peek(0);
 		if (sync_byte != 0xff) {
-			// serial_read();
-			// continue;
+			if (sync_byte == '~') {
+				soft_reset();
+			}
 
 			display[0] = 'E';
 			display[1] = sync_byte;
-			lockup = true;
 			break;
 		}
 
@@ -79,7 +87,6 @@ void process_serial() {
 			default: {
 				display[0] = 'C';
 				display[1] = cmd;
-				lockup = true;
 				break;
 			}
 		}
@@ -112,6 +119,9 @@ void write_gs() {
 }
 
 int main(void) {
+    MCUSR = 0;
+    wdt_disable();
+
 	setOutput(BLANK);
 	setOutput(GSCLK);
 	setOutput(SIN);
@@ -127,26 +137,22 @@ int main(void) {
 
 	sei();
 
-	uint16_t current_tick_epoch = 0;
+	// for (;;) {
+	// 	if (serial_available()) {
+	// 		uint8_t c = serial_read();
+	// 		if (c == '\r') {
+	// 			serial_write_string("\r\n");
+	// 		} else {
+	// 			serial_write(pgm_read_word(&hex[c >> 4]));
+	// 			serial_write(pgm_read_word(&hex[c & 0xf]));
+	// 		}
+	// 	}
 
-	for (;;) {
-		if (serial_available()) {
-			uint8_t c = serial_read();
-			if (c == '\r') {
-				serial_write_string("\r\n");
-			} else {
-				serial_write(pgm_read_word(&hex[c >> 4]));
-				serial_write(pgm_read_word(&hex[c & 0xf]));
-			}
-		}
-		
-		if (tick_epoch() != current_tick_epoch) {
-			// serial_write('.');
-			current_tick_epoch = tick_epoch();
-		}
-	}
-
-#if 0
+	// 	if (tick_epoch() != current_tick_epoch) {
+	// 		// serial_write('.');
+	// 		current_tick_epoch = tick_epoch();
+	// 	}
+	// }
 
 	int current_cycle = 0;
 	uint16_t current_tick_epoch = 0;
@@ -175,7 +181,7 @@ int main(void) {
 			process_serial();
 		}
 
-		for (int i = 0; i < sizeof(display); i++) {
+		for (uint8_t i = 0; i < sizeof(display); i++) {
 			int glyph = font((mode == 1) ? scroll_buffer[scrolling_counter + i] : display[i]);
 			for (int j = 0; j < 16; j++) {
 				if (glyph & (1 << j)) {
@@ -193,7 +199,6 @@ int main(void) {
 
 		write_gs();
 	}
-#endif
 
 	return 0;
 }

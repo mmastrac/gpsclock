@@ -1,5 +1,17 @@
 #pragma once
 
+/*
+	Attiny85 pinouts:
+
+	           +----+ 
+	RESET   5 -|o   |-   VCC 
+	DATAOUT 3 -|    |- 2 SIN
+	DATAIN  4 -|    |- 1 GSCLK/SCLK
+	GND       -|    |- 0 BLANK/XLAT
+		       +----+
+*/
+
+
 // BLANK + XLAT
 #define BLANK_PORT B
 #define BLANK_PIN 0

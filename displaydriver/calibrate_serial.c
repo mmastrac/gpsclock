@@ -126,7 +126,7 @@ void calibrate_dumb(uint8_t* best_score, uint16_t* best_calibration) {
 }
 
 void calibrate_serial() {
-	bitbang_write_string("*\r\n*** OSCCAL serial calibration: send '~' until 'Done.'\r\n");
+	bitbang_write_string("*\r\n*** OSCCAL serial calibration: send '~' until 'done'\r\n");
 	SERIAL_DEBUG("OSCCAL = 0x%x\r\n", OSCCAL);
 
 	uint8_t best_score = 0;
