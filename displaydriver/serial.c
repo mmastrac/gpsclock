@@ -33,58 +33,39 @@ inline void _serial_push(serial_buffer_t* uart, uint8_t value);
 uint8_t _serial_available(serial_buffer_t* buffer);
 uint8_t _serial_read(serial_buffer_t* buffer);
 void _serial_push(serial_buffer_t* buffer, uint8_t value);
+inline void receive_check();
 inline void receive_bit();
 inline void send_bit();
 
-typedef enum receive_flag_t { RECEIVE_IDLE = 0, RECEIVE_HALF = 1, RECEIVE_FULL = 2 } receive_flag_t;
+typedef enum receive_flag_t { RECEIVE_IDLE = -1, RECEIVE_A = 0, RECEIVE_B = 1, RECEIVE_C = 2, RECEIVE_D = 3 } receive_flag_t;
 typedef enum send_flag_t { SEND_IDLE = 0, SEND_ACTIVE = 1 } send_flag_t;
+typedef enum serial_timer_state_t { A = 0, B = 1, C = 2, D = 3 } serial_timer_state_t;
 
 receive_flag_t receive_flag = RECEIVE_IDLE;
 send_flag_t send_flag = SEND_IDLE;
-
-ISR(PCINT0_vect) {
-	int dataIn = readState(DATAIN);
-
-	// Serial start bit is a zero, so we'll see this as a pin-change interrupt 
-	// with a read of zero
-	if (!dataIn) {
-		// Start bit detection
-
-		// Disable the pin-change interrupt as we transition to timers
-		clearBit(PCMSK, PCINT4);
-
-		receive_value = 0;
-		receive_counter = 0;
-
-		uint8_t current_timer = TCNT0;
-
-		if (current_timer < SERIAL_TIMER_COMPARE_HALF_THRESHOLD || current_timer >= SERIAL_TIMER_COMPARE_FULL_THRESHOLD) {
-			_serial_push(&uart_input, 'h');
-			// Trigger serial receive on the half timer
-			receive_flag = RECEIVE_HALF;
-		} else {
-			_serial_push(&uart_input, 'f');
-			// Trigger serial receive on the full timer
-			receive_flag = RECEIVE_FULL;
-		}
-	}
-}
+serial_timer_state_t serial_timer_state = A;
 
 ISR(TIMER0_COMPA_vect) {
-	// Receive can be on the full-timer interrupt
-	if (receive_flag == RECEIVE_FULL) {
-		receive_bit();
+	receive_check();
+
+	switch (serial_timer_state) {
+		case A:
+			if (receive_flag == RECEIVE_A) {
+				receive_bit();
+			}
+			// Sending is always in phase A
+			send_bit();
+			break;
+		case B:
+		case C:
+		case D:
+			if (receive_flag == (receive_flag_t)serial_timer_state) {
+				receive_bit();
+			}
+			break;
 	}
 
-	// Sending is always on the full-timer interrupt
-	send_bit();
-}
-
-ISR(TIMER0_COMPB_vect) {
-	// Receive can be on the half-timer interrupt
-	if (receive_flag == RECEIVE_HALF) {
-		receive_bit();
-	}
+	serial_timer_state = (serial_timer_state + 1) & 3;
 }
 
 void send_bit() {
@@ -116,14 +97,7 @@ void send_bit() {
 			case 9:
 				// Stop bit
 				setHigh(DATAOUT);
-
-				// Queue up next character (if applicable)
-				if (_serial_available(&uart_output)) {
-					send_counter = -1;
-					send_value = _serial_read(&uart_output);
-				} else {
-					send_flag = SEND_IDLE;
-				}
+				send_flag = SEND_IDLE;
 				break;
 		}
 
@@ -131,10 +105,27 @@ void send_bit() {
 	}
 }
 
+void receive_check() {
+	if (receive_flag == RECEIVE_IDLE) {
+		uint8_t pin_state = readState(DATAIN);
+		if (pin_state == 0) {
+			// OK, time to start receiving, but in the next phase so we can ensure 
+			// good signal read quality
+			receive_flag = (serial_timer_state + 1) & 3;
+			receive_value = 0;
+			receive_counter = 0;
+		}
+	}
+}
+
 void receive_bit() {
 	switch (receive_counter) {
 		case 0:
 			// Start bit (zero)
+			if (readState(DATAIN)) {
+				// Spurious pin change
+				receive_flag = RECEIVE_IDLE;			
+			}
 			break;
 		case 1:
 		case 2:
@@ -149,10 +140,9 @@ void receive_bit() {
 			break;
 		case 9:
 			// Stop bit (one)
-			_serial_push(&uart_input, receive_value);
-
-			// Re-enable pin-change interrupt
-			setBit(PCMSK, PCINT4); 
+			if (readState(DATAIN)) {
+				_serial_push(&uart_input, receive_value);				
+			}
 
 			receive_flag = RECEIVE_IDLE;
 			break;
@@ -235,20 +225,18 @@ void initialize_serial() {
 	// CTC mode, OCRA is top
 	TCCR0A = _BV(WGM01);
 	
-	// Timer interrupts for each serial bit
+	// Bit-bang serial needs the full timer period
 	OCR0A = SERIAL_TIMER_COMPARE;
-	OCR0B = SERIAL_TIMER_COMPARE_HALF;
 
 	// Enable the timer for bit-bang serial
 	TCCR0B = SERIAL_CLOCK_DIVISOR;
 
 	calibrate_serial();
 
-	// Enable timer interrupts -- overflow for timer0 and timer1
-	TCNT0 = 0;
-	TIMSK = _BV(OCIE0A) | _BV(OCIE0B) | _BV(TOIE1);
+	// Timer interrupts for 1/4 of each serial bit
+	OCR0A = SERIAL_TIMER_COMPARE_QUARTER;
 
-	// Turn on pin-change interrupt for port 4
-	setBit(PCMSK, PCINT4);
-	setBit(GIMSK, PCIE);
+	// Enable timer interrupts -- compareA for timer0 and overflow for timer1
+	TCNT0 = 0;
+	TIMSK = _BV(OCIE0A) | _BV(TOIE1);
 }

@@ -127,12 +127,28 @@ int main(void) {
 
 	sei();
 
+	uint16_t current_tick_epoch = 0;
+
 	for (;;) {
 		if (serial_available()) {
-			serial_write_string("\r\nr='");
-			serial_write(serial_read());
-			serial_write_string("'\r\n");
-			_delay_ms(1);
+			uint8_t c = serial_read();
+			if (c == '\r') {
+				serial_write_string("\r\n");
+			} else if (c >= 127) {
+				serial_write_string("(INVALID");
+				serial_write(' ');
+				for (int i = 0; i < 8; i++) {
+					serial_write((c & (1 << (7 - i))) ? '1' : '0');
+				}
+				serial_write(')');
+			} else {
+				serial_write(c);
+			}
+		}
+
+		if (tick_epoch() != current_tick_epoch) {
+			// serial_write('.');
+			current_tick_epoch = tick_epoch();
 		}
 	}
 
