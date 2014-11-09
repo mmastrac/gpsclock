@@ -14,7 +14,7 @@
 #define SERIAL_CLOCK_DIVISOR 	_BV(CS01)
 
 // Timer interrupts every 104000ns (slightly more often than the 104166.7ns we need)
-#define SERIAL_TIMER_COMPARE 		208
+#define SERIAL_TIMER_COMPARE 		208U
 
 #elif F_CPU == 8000000UL
 
@@ -30,7 +30,7 @@
 #define SERIAL_CLOCK_DIVISOR 	_BV(CS01)
 
 // Timer interrupts every 104000ns (slightly more often than the 104166.7ns we need)
-#define SERIAL_TIMER_COMPARE 		104
+#define SERIAL_TIMER_COMPARE 		104U
 
 #else
 #error Unknown FCPU
@@ -42,7 +42,7 @@
 #define SERIAL_TIMER_THRESHOLD 					(SERIAL_TIMER_COMPARE / 20)
 
 // The distance we need to be from the half timer to trigger receive on it
-#define SERIAL_TIMER_COMPARE_HALF_THRESHOLD 	(SERIAL_TIMER_COMPARE_HALF - SERIAL_TIMER_THRESHOLD)
+#define SERIAL_TIMER_COMPARE_HALF_THRESHOLD 	(uint8_t)(SERIAL_TIMER_COMPARE_HALF - SERIAL_TIMER_THRESHOLD)
 
 // The distance we need to be from the full timer to trigger receive on it
-#define SERIAL_TIMER_COMPARE_FULL_THRESHOLD 	(SERIAL_TIMER_COMPARE - SERIAL_TIMER_THRESHOLD)
+#define SERIAL_TIMER_COMPARE_FULL_THRESHOLD 	(uint8_t)(SERIAL_TIMER_COMPARE - SERIAL_TIMER_THRESHOLD)

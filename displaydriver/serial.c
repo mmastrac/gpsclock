@@ -32,7 +32,9 @@ serial_buffer_t uart_output = { 0 };
 inline void _serial_push(serial_buffer_t* uart, uint8_t value);
 uint8_t _serial_available(serial_buffer_t* buffer);
 uint8_t _serial_read(serial_buffer_t* buffer);
+void _serial_push(serial_buffer_t* buffer, uint8_t value);
 inline void receive_bit();
+inline void send_bit();
 
 typedef enum receive_flag_t { RECEIVE_IDLE = 0, RECEIVE_HALF = 1, RECEIVE_FULL = 2 } receive_flag_t;
 typedef enum send_flag_t { SEND_IDLE = 0, SEND_ACTIVE = 1 } send_flag_t;
@@ -57,9 +59,11 @@ ISR(PCINT0_vect) {
 		uint8_t current_timer = TCNT0;
 
 		if (current_timer < SERIAL_TIMER_COMPARE_HALF_THRESHOLD || current_timer >= SERIAL_TIMER_COMPARE_FULL_THRESHOLD) {
+			_serial_push(&uart_input, 'h');
 			// Trigger serial receive on the half timer
 			receive_flag = RECEIVE_HALF;
 		} else {
+			_serial_push(&uart_input, 'f');
 			// Trigger serial receive on the full timer
 			receive_flag = RECEIVE_FULL;
 		}
@@ -73,6 +77,17 @@ ISR(TIMER0_COMPA_vect) {
 	}
 
 	// Sending is always on the full-timer interrupt
+	send_bit();
+}
+
+ISR(TIMER0_COMPB_vect) {
+	// Receive can be on the half-timer interrupt
+	if (receive_flag == RECEIVE_HALF) {
+		receive_bit();
+	}
+}
+
+void send_bit() {
 	if (send_flag == SEND_IDLE) {
 		if (_serial_available(&uart_output)) {
 			send_flag = SEND_ACTIVE;
@@ -115,29 +130,32 @@ ISR(TIMER0_COMPA_vect) {
 		send_counter++;
 	}
 }
-	
-ISR(TIMER0_COMPB_vect) {
-	// Receive can be on the half-timer interrupt
-	if (receive_flag == RECEIVE_HALF) {
-		receive_bit();
-	}
-}
 
 void receive_bit() {
-	if (receive_counter == 0) {
-		// Start bit (zero)
-	} else if (receive_counter == 9) {
-		// Stop bit (one)
-		_serial_push(&uart_input, receive_value);
+	switch (receive_counter) {
+		case 0:
+			// Start bit (zero)
+			break;
+		case 1:
+		case 2:
+		case 3:
+		case 4:
+		case 5:
+		case 6:
+		case 7:
+		case 8:
+			// Clock in the serial bit
+			receive_value |= (readState(DATAIN) ? 1 : 0) << (receive_counter - 1);
+			break;
+		case 9:
+			// Stop bit (one)
+			_serial_push(&uart_input, receive_value);
 
-		// Re-enable pin-change interrupt
-		clearBit(GIFR, PCIF);
-		setBit(PCMSK, PCINT4);
+			// Re-enable pin-change interrupt
+			setBit(PCMSK, PCINT4); 
 
-		receive_flag = 0;
-	} else {
-		// Clock in the serial bit
-		receive_value |= (readState(DATAIN) ? 1 : 0) << (receive_counter - 1);
+			receive_flag = RECEIVE_IDLE;
+			break;
 	}
 
 	receive_counter++;
@@ -201,6 +219,16 @@ void serial_write(uint8_t c) {
 	_serial_push(&uart_output, c);
 }
 
+void serial_write_buffer(uint8_t* buffer, uint8_t length) {
+	for (uint8_t i = 0; i < length; i++) {
+		_serial_push(&uart_output, buffer[i]);
+	}
+}
+
+void serial_write_string(char* buffer) {
+	serial_write_buffer((uint8_t*)buffer, strlen(buffer));
+}
+
 void initialize_serial() {
 	// Serial timer (see comments above)
 
@@ -218,9 +246,9 @@ void initialize_serial() {
 
 	// Enable timer interrupts -- overflow for timer0 and timer1
 	TCNT0 = 0;
-	TIMSK = _BV(OCIE0A) | _BV(TOIE1);
+	TIMSK = _BV(OCIE0A) | _BV(OCIE0B) | _BV(TOIE1);
 
 	// Turn on pin-change interrupt for port 4
-	PCMSK = _BV(PCINT4);
-	GIMSK = _BV(PCIE);	
+	setBit(PCMSK, PCINT4);
+	setBit(GIMSK, PCIE);
 }

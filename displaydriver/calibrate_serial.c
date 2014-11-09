@@ -73,7 +73,7 @@ uint16_t score(uint16_t calibration) {
 	return calibration - IDEAL_CALIBRATION;
 }
 
-uint16_t calibrate_test(uint8_t low, uint8_t high, uint8_t guess, uint8_t* best_score, uint16_t* best_calibration) {
+uint16_t calibrate_test(__attribute__((__unused__)) uint8_t low, __attribute__((__unused__)) uint8_t high, uint8_t guess, uint8_t* best_score, uint16_t* best_calibration) {
 	uint8_t original_calibration = OSCCAL;
 	OSCCAL = guess;
 	uint16_t calibration = calibrate();

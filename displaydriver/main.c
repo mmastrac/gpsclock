@@ -55,7 +55,7 @@ void process_serial() {
 		switch (cmd) {
 			// Set the display explictly
 			case 'S': {
-				for (int i = 0; i < sizeof(display); i++) {
+				for (uint8_t i = 0; i < sizeof(display); i++) {
 					if (packet_length) {
 						display[i] = serial_read();
 						packet_length--;
@@ -68,7 +68,7 @@ void process_serial() {
 			}
 			// Set the scrolling buffer
 			case 'B': {
-				for (int i = 0; i < packet_length; i++) {
+				for (uint8_t i = 0; i < packet_length; i++) {
 					scroll_buffer[i] = serial_read();
 				}
 				scrolling_length = packet_length;
@@ -128,13 +128,12 @@ int main(void) {
 	sei();
 
 	for (;;) {
-		_delay_ms(250);
-		serial_write('H');
-		serial_write('e');
-		serial_write('l');
-		serial_write('l');
-		serial_write('o');
-		serial_write(' ');
+		if (serial_available()) {
+			serial_write_string("\r\nr='");
+			serial_write(serial_read());
+			serial_write_string("'\r\n");
+			_delay_ms(1);
+		}
 	}
 
 #if 0

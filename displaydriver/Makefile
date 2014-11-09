@@ -64,7 +64,7 @@ AS             = avr-as
 
 # Override is only needed by avr-lib build system.
 
-override CFLAGS        = -std=c99 -g -Wall -Werror $(OPTIMIZE) -mmcu=$(MCU_TARGET) $(DEFS) \
+override CFLAGS        = -std=c99 -g -Wall -Wextra -Werror $(OPTIMIZE) -mmcu=$(MCU_TARGET) $(DEFS) \
 							-ffunction-sections -fdata-sections -ffreestanding -flto
 override LDFLAGS       = -Wl,-Map,$(PRG).map,--gc-sections
 
