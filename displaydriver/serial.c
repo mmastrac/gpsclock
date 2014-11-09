@@ -151,9 +151,8 @@ void _serial_push(serial_buffer_t* buffer, uint8_t value) {
 }
 
 uint8_t _serial_available(serial_buffer_t* buffer) {
-	cli();
+	// Read volatile end once
 	uint8_t end = buffer->uart_end;
-	sei();
 
 	if (end == buffer->uart_start)
 		return 0;

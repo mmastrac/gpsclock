@@ -139,7 +139,7 @@ int main(void) {
 				serial_write(pgm_read_word(&hex[c & 0xf]));
 			}
 		}
-
+		
 		if (tick_epoch() != current_tick_epoch) {
 			// serial_write('.');
 			current_tick_epoch = tick_epoch();
