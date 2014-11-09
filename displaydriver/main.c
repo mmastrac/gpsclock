@@ -134,15 +134,9 @@ int main(void) {
 			uint8_t c = serial_read();
 			if (c == '\r') {
 				serial_write_string("\r\n");
-			} else if (c >= 127) {
-				serial_write_string("(INVALID");
-				serial_write(' ');
-				for (int i = 0; i < 8; i++) {
-					serial_write((c & (1 << (7 - i))) ? '1' : '0');
-				}
-				serial_write(')');
 			} else {
-				serial_write(c);
+				serial_write(pgm_read_word(&hex[c >> 4]));
+				serial_write(pgm_read_word(&hex[c & 0xf]));
 			}
 		}
 
