@@ -1,65 +1,44 @@
 #include <avr/interrupt.h>
 #include <avr/io.h>
 #include <avr/cpufunc.h>
+#include <string.h>
+#include <stdbool.h>
 #include "serial.h"
 #include "bitbang.h"
 #include "pins.h"
-#include "calibrate.h"
-
-#include <stdio.h>
-#include <string.h>
+#include "calibrate_serial.h"
+#include "serial_timing.h"
 
 // Serial 
 
 #define SERIAL_SIZE 32
 
-#if F_CPU == 16000000UL
-
-/*
- * 16 MHz
- */
-
-// CPU clock is 16,000,000Hz, period is 62.5ns
-// Baud rate is 9600, period is 104166.67ns (104us)
-
-// We're going to set the timer divisor to 8 which gives us a timer period of 500ns 
-// and use OCR0A to trigger the appropriate intervals
-#define SERIAL_CLOCK_DIVISOR 	_BV(CS01)
-
-// Timer interrupts every 104000ns (slightly more often than the 104166.7ns we need)
-#define SERIAL_TIMER_COMPARE 	208
-
-#elif F_CPU == 8000000UL
-
-/*
- * 8 MHz
- */
-
-// CPU clock is 8,000,000Hz, period is 125ns
-// Baud rate is 9600, period is 104166.67ns (104us)
-
-// We're going to set the timer divisor to 8 which gives us a timer period of 1000ns 
-// and use OCR0A to trigger the appropriate intervals
-#define SERIAL_CLOCK_DIVISOR 	_BV(CS01)
-
-// Timer interrupts every 104000ns (slightly more often than the 104166.7ns we need)
-#define SERIAL_TIMER_COMPARE 	104
-
-#else
-
-#error Unknown FCPU
-
-#endif
-
-volatile uint8_t uart_buffer[SERIAL_SIZE] = { 0 };
-uint8_t uart_start = 0;
-volatile uint8_t uart_end = 0;
+// Input/output buffer
+typedef struct serial_buffer_t {
+	uint8_t uart_start;
+	volatile uint8_t uart_end;
+	volatile uint8_t uart_buffer[SERIAL_SIZE];
+} serial_buffer_t;
 
 // The serial value we are clocking in
-volatile uint8_t serial_value = 0;
-volatile uint8_t serial_counter = 0;
+uint8_t receive_value = 0;
+uint8_t receive_counter = 0;
+uint8_t send_value = 0;
+uint8_t send_counter = 0;
 
-inline void _serial_push(uint8_t value);
+serial_buffer_t uart_input = { 0 };
+serial_buffer_t uart_output = { 0 };
+
+inline void _serial_push(serial_buffer_t* uart, uint8_t value);
+uint8_t _serial_available(serial_buffer_t* buffer);
+uint8_t _serial_read(serial_buffer_t* buffer);
+inline void receive_bit();
+
+typedef enum receive_flag_t { RECEIVE_IDLE = 0, RECEIVE_HALF = 1, RECEIVE_FULL = 2 } receive_flag_t;
+typedef enum send_flag_t { SEND_IDLE = 0, SEND_ACTIVE = 1 } send_flag_t;
+
+receive_flag_t receive_flag = RECEIVE_IDLE;
+send_flag_t send_flag = SEND_IDLE;
 
 ISR(PCINT0_vect) {
 	int dataIn = readState(DATAIN);
@@ -72,215 +51,173 @@ ISR(PCINT0_vect) {
 		// Disable the pin-change interrupt as we transition to timers
 		clearBit(PCMSK, PCINT4);
 
-		// Reset the timer
-		TCNT0 = 0;
+		receive_value = 0;
+		receive_counter = 0;
 
-		// Start the timer in CTC mode
-		TCCR0B = SERIAL_CLOCK_DIVISOR;
+		uint8_t current_timer = TCNT0;
 
-		serial_value = 0;
-		serial_counter = 0;
+		if (current_timer < SERIAL_TIMER_COMPARE_HALF_THRESHOLD || current_timer >= SERIAL_TIMER_COMPARE_FULL_THRESHOLD) {
+			// Trigger serial receive on the half timer
+			receive_flag = RECEIVE_HALF;
+		} else {
+			// Trigger serial receive on the full timer
+			receive_flag = RECEIVE_FULL;
+		}
 	}
 }
 
 ISR(TIMER0_COMPA_vect) {
-	// Restart the timer
-	TCNT0 = 0;
+	// Receive can be on the full-timer interrupt
+	if (receive_flag == RECEIVE_FULL) {
+		receive_bit();
+	}
 
-	if (serial_counter == 8) {
-		// Stop bit is a one
-		_serial_push(serial_value);
+	// Sending is always on the full-timer interrupt
+	if (send_flag == SEND_IDLE) {
+		if (_serial_available(&uart_output)) {
+			send_flag = SEND_ACTIVE;
+			send_counter = 0;
+			send_value = _serial_read(&uart_output);
+		}
+	}
 
-		// Disable timer
-		TCCR0B = 0;
+	if (send_flag == SEND_ACTIVE) {
+		switch (send_counter) {
+			case 0:
+				// Start
+				setLow(DATAOUT);
+				break;
+			case 1:
+			case 2:
+			case 3:
+			case 4:
+			case 5:
+			case 6:
+			case 7:
+			case 8:
+				setState(DATAOUT, send_value & 1);
+				send_value >>= 1;
+				break;
+			case 9:
+				// Stop bit
+				setHigh(DATAOUT);
+
+				// Queue up next character (if applicable)
+				if (_serial_available(&uart_output)) {
+					send_counter = -1;
+					send_value = _serial_read(&uart_output);
+				} else {
+					send_flag = SEND_IDLE;
+				}
+				break;
+		}
+
+		send_counter++;
+	}
+}
+	
+ISR(TIMER0_COMPB_vect) {
+	// Receive can be on the half-timer interrupt
+	if (receive_flag == RECEIVE_HALF) {
+		receive_bit();
+	}
+}
+
+void receive_bit() {
+	if (receive_counter == 0) {
+		// Start bit (zero)
+	} else if (receive_counter == 9) {
+		// Stop bit (one)
+		_serial_push(&uart_input, receive_value);
+
 		// Re-enable pin-change interrupt
 		clearBit(GIFR, PCIF);
 		setBit(PCMSK, PCINT4);
+
+		receive_flag = 0;
 	} else {
 		// Clock in the serial bit
-		serial_value |= (readState(DATAIN) ? 1 : 0) << serial_counter;
+		receive_value |= (readState(DATAIN) ? 1 : 0) << (receive_counter - 1);
 	}
 
-	serial_counter++;
+	receive_counter++;
 }
 
-ISR(TIMER0_COMPB_vect) {
+void _serial_push(serial_buffer_t* buffer, uint8_t value) {
+	buffer->uart_buffer[buffer->uart_end] = value;
+	buffer->uart_end++;
+	if (buffer->uart_end >= SERIAL_SIZE)
+		buffer->uart_end = 0;
 }
 
-void _serial_push(uint8_t value) {
-	uart_buffer[uart_end] = value;
-	uart_end++;
-	if (uart_end >= SERIAL_SIZE)
-		uart_end = 0;
-}
-
-uint8_t serial_available() {
+uint8_t _serial_available(serial_buffer_t* buffer) {
 	cli();
-	uint8_t end = uart_end;
+	uint8_t end = buffer->uart_end;
 	sei();
 
-	if (end == uart_start)
+	if (end == buffer->uart_start)
 		return 0;
 
-	if (end > uart_start)
-		return end - uart_start;
+	if (end > buffer->uart_start)
+		return end - buffer->uart_start;
 
-	return SERIAL_SIZE - (uart_start - end);
+	return SERIAL_SIZE - (buffer->uart_start - end);
 }
 
-void serial_drop(uint8_t count) {
-	uart_start = (uart_start + count) % SERIAL_SIZE;
+void _serial_drop(serial_buffer_t* buffer, uint8_t count) {
+	buffer->uart_start = (buffer->uart_start + count) % SERIAL_SIZE;
 }
 
-uint8_t serial_peek(uint8_t where) {
-	return uart_buffer[(uart_start + where) % SERIAL_SIZE];
+uint8_t _serial_peek(serial_buffer_t* buffer, uint8_t where) {
+	return buffer->uart_buffer[(buffer->uart_start + where) % SERIAL_SIZE];
 }
 
-uint8_t serial_read() {
-	uint8_t ret = uart_buffer[uart_start];
-	uart_start++;
-	if (uart_start >= SERIAL_SIZE)
-		uart_start = 0;
+uint8_t _serial_read(serial_buffer_t* buffer) {
+	uint8_t ret = buffer->uart_buffer[buffer->uart_start];
+	buffer->uart_start++;
+	if (buffer->uart_start >= SERIAL_SIZE)
+		buffer->uart_start = 0;
 
 	return ret;
 }
 
-void bitbang_write(char* buffer, uint8_t length) {
-	for (int i = 0; i < length; i++) {
-		serial_value = buffer[i];
-		serial_counter = 0;
-
-		// Note that we're writing really slow just in case our timing is off -- this 
-		// lets a serial receiver take its time and understand what we sent
-		while (serial_counter < 20) {
-			TCNT0 = 0;
-			setBit(TIFR, OCF0A); // To clear it, write a one
-
-			while (!readBit(TIFR, OCF0A));
-
-			switch (serial_counter) {
-				case 0:
-					setLow(DATAOUT);
-					break;
-				case 1:
-				case 2:
-				case 3:
-				case 4:
-				case 5:
-				case 6:
-				case 7:
-				case 8:
-					setState(DATAOUT, serial_value & 1);
-					serial_value >>= 1;
-					break;
-				case 9:
-					setHigh(DATAOUT);
-					break;
-			}
-		
-			serial_counter++;
-		}
-	}
+uint8_t serial_available() {
+	return _serial_available(&uart_input);
 }
 
-void bitbang_write_string(char* buffer) {
-	bitbang_write(buffer, strlen(buffer));
+uint8_t serial_read() {
+	return _serial_read(&uart_input);
 }
 
-uint16_t score(uint16_t calibration) {
-	if (calibration < IDEAL_CALIBRATION)
-		return IDEAL_CALIBRATION - calibration;
-	return calibration - IDEAL_CALIBRATION;
+uint8_t serial_peek(uint8_t where) {
+	return _serial_peek(&uart_input, where);
 }
 
-uint16_t calibrate_test(uint8_t low, uint8_t high, uint8_t guess, uint8_t* best_score, uint16_t* best_calibration) {
-	char buffer[32];
-
-	uint8_t original_calibration = OSCCAL;
-	OSCCAL = guess;
-	uint16_t calibration = calibrate();
-	OSCCAL = original_calibration;
-
-	sprintf(buffer, "OSCCAL = %x < %x < %x\r\n", low, guess, high);
-	bitbang_write_string(buffer);
-
-	sprintf(buffer, "C: %u\r\n", calibration);
-	bitbang_write_string(buffer);
-
-	if (score(calibration) < score(*best_calibration)) {
-		*best_score = guess;
-		*best_calibration = calibration;
-	}
-
-	return calibration;
+void serial_drop(uint8_t count) {
+	_serial_drop(&uart_input, count);
 }
 
-void calibrate_range(uint8_t low, uint8_t high, uint8_t* best_score, uint16_t* best_calibration) {
-	for (;;) {
-		uint8_t guess = (high + low) >> 1;
-		uint16_t calibration = calibrate_test(low, high, guess, best_score, best_calibration);
-
-		if (calibration < IDEAL_CALIBRATION - 1) {
-			low = guess + 1;
-		} else if (calibration > IDEAL_CALIBRATION + 1) {
-			high = guess - 1;
-		} else {
-			// Nailed it!
-			break;
-		}
-
-		if (low >= high) {
-			// On top of the binary search we'll also check the neighbors
-			calibrate_test(guess - 1, guess + 1, guess - 1, best_score, best_calibration);
-			calibrate_test(guess - 1, guess + 1, guess + 1, best_score, best_calibration);
-			break;
-		}
-	}
-}
-
-void calibrate_binary(uint8_t* best_score, uint16_t* best_calibration) {
-	calibrate_range(0, 0x7f, best_score, best_calibration);
-	calibrate_range(0x80, 0x9f, best_score, best_calibration);
-}
-
-void calibrate_dumb(uint8_t* best_score, uint16_t* best_calibration) {
-	for (uint8_t i = 0; i < 255; i++) {
-		calibrate_test(i, i, i, best_score, best_calibration);
-	}
+void serial_write(uint8_t c) {
+	_serial_push(&uart_output, c);
 }
 
 void initialize_serial() {
-	char buffer[32];
-
 	// Serial timer (see comments above)
 
 	// CTC mode, OCRA is top
 	TCCR0A = _BV(WGM01);
+	
 	// Timer interrupts for each serial bit
 	OCR0A = SERIAL_TIMER_COMPARE;
+	OCR0B = SERIAL_TIMER_COMPARE_HALF;
+
 	// Enable the timer for bit-bang serial
 	TCCR0B = SERIAL_CLOCK_DIVISOR;
 
-	bitbang_write_string("*\r\n*** OSCCAL serial calibration: send '~' until 'Done.'\r\n");
-	sprintf(buffer, "OSCCAL = 0x%x\r\n", OSCCAL);
-	bitbang_write_string(buffer);
+	calibrate_serial();
 
-	uint8_t best_score = 0;
-	uint16_t best_calibration = 0;
-
-	// Calibrate low and high range
-	calibrate_binary(&best_score, &best_calibration);
-
-	sprintf(buffer, "Final = 0x%x, c: %u\r\n", best_score, best_calibration);
-	bitbang_write_string(buffer);
-
-	OSCCAL = best_score;
-
-	bitbang_write_string("Done.\r\n");
-
-	// Disable the timer now
-	TCCR0B = 0;
 	// Enable timer interrupts -- overflow for timer0 and timer1
+	TCNT0 = 0;
 	TIMSK = _BV(OCIE0A) | _BV(TOIE1);
 
 	// Turn on pin-change interrupt for port 4

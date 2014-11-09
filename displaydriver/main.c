@@ -128,7 +128,13 @@ int main(void) {
 	sei();
 
 	for (;;) {
-		
+		_delay_ms(250);
+		serial_write('H');
+		serial_write('e');
+		serial_write('l');
+		serial_write('l');
+		serial_write('o');
+		serial_write(' ');
 	}
 
 #if 0

@@ -4,8 +4,8 @@
 # What we want to do here is approximate the number of ticks required to
 # take up 6 * 104.116us (729.167us), the length of a pulse for a 9600 baud stream.
 
-# We ideally want to see this come out as 2380, through experimental observation
-# of the acceptable range for an example USB<->serial interface.
+# We ideally want to see this come out as IDEAL_CALIBRATION, through experimental 
+# observation of the acceptable range for an example USB<->serial interface.
 
 .global calibrate
 
