@@ -1,5 +1,5 @@
 PRG            = main
-OBJ            = main.o font.o sin_cycle.o tlc5940.o ticks.o serial.o calibrate.o calibrate_serial.o
+OBJ            = main.o hex_digits.o font.o sin_cycle.o tlc5940.o ticks.o serial.o calibrate.o calibrate_serial.o
 #MCU_TARGET     = at90s2313
 #MCU_TARGET     = at90s2333
 #MCU_TARGET     = at90s4414

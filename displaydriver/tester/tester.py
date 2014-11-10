@@ -50,9 +50,16 @@ def loop(port, verbose):
                 continue
     print "Initialized."
 
+    counter = 0
     while True:
-        print ">",
-        raw_input()
+        time.sleep(0.5)
+        packet = "S%02d" % counter
+        p.write("\xff" + chr(len(packet)))
+        p.write(packet)
+        counter = (counter + 1) % 100
+
+#        print ">",
+#        raw_input()
 
 if __name__ == '__main__':
     arguments = docopt(__doc__, version='Display driver tester v1.0')

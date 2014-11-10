@@ -4,7 +4,6 @@
 #include <util/delay.h>
 #include <stdlib.h>
 #include <stdbool.h>
-#include <avr/pgmspace.h>
 #include <avr/wdt.h>
 
 #include "bitbang.h"
@@ -14,8 +13,8 @@
 #include "ticks.h"
 #include "serial.h"
 #include "pins.h"
+#include "hex_digits.h"
 
-const uint8_t hex[] PROGMEM = "0123456789ABCDEF";
 uint8_t mode = 0;
 uint8_t display[4] = { 'v', '1', '0', '0' };
 
@@ -110,9 +109,9 @@ void write_gs() {
 			byte <<= 1;
 
 			setState(SIN, bit);
-			_delay_loop_1(2);
+			// _delay_loop_1(2);
 			setHigh(GSCLK);
-			_delay_loop_1(2);
+			// _delay_loop_1(2);
 			setLow(GSCLK);
 		}
 	}
@@ -155,15 +154,15 @@ int main(void) {
 	// }
 
 	int current_cycle = 0;
-	uint16_t current_tick_epoch = 0;
+	uint8_t current_tick_epoch = 0;
 
 	for (;;) {
 		_delay_us(10);
 
 		setHigh(BLANK);
-		uint16_t tick_cycle = ticks();
-		uint16_t tick_epoch_cycle = tick_epoch();
-		uint16_t current_brightness = sin_cycle(tick_cycle);
+		ticks_t now = ticks();
+		uint8_t tick_epoch_cycle = now.epoch;
+		uint16_t current_brightness = sin_cycle(now.ticks);
 
 		current_cycle++;
 
@@ -180,6 +179,9 @@ int main(void) {
 
 			process_serial();
 		}
+
+		// display[0] = hex_hi(now.epoch);
+		// display[1] = hex_lo(now.epoch);
 
 		for (uint8_t i = 0; i < sizeof(display); i++) {
 			int glyph = font((mode == 1) ? scroll_buffer[scrolling_counter + i] : display[i]);
